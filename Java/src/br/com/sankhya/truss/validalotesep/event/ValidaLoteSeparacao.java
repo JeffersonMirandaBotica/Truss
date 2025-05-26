@@ -18,7 +18,7 @@ public class ValidaLoteSeparacao implements EventoProgramavelJava {
 	@Override
 	public void afterDelete(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
@@ -30,25 +30,25 @@ public class ValidaLoteSeparacao implements EventoProgramavelJava {
 	@Override
 	public void afterUpdate(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void beforeCommit(TransactionContext arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void beforeDelete(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void beforeInsert(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
@@ -56,27 +56,27 @@ public class ValidaLoteSeparacao implements EventoProgramavelJava {
 		// TODO Auto-generated method stub
 		validaLoteSep(evt);
 	}
-	
-	
+
+
 	private static void validaLoteSep(PersistenceEvent evt) throws Exception {
-		
-		
+
+
 		DynamicVO ampVO = (DynamicVO) evt.getVo();
 		if(ampVO.asString("CONTROLEMP").equals(" ") || ampVO.asBigDecimal("QTD") == null || ampVO.asBigDecimal("QTD").equals(BigDecimal.ZERO)){
 			return;
 		}
-		
+
 		JapeWrapper prefDAO = JapeFactory.dao(DynamicEntityNames.PARAMETRO_SISTEMA);
-		
+
 		JdbcWrapper jdbc = JapeFactory.getEntityFacade().getJdbcWrapper();
-		
+
 		BigDecimal codlocal = prefDAO.findOne("CHAVE = ?", "LOCVALPESAGEM").asBigDecimal("INTEIRO");
-		
+
 		NativeSql q0 = new NativeSql(jdbc);
 		q0.setNamedParameter("P_NUAPO", ampVO.asBigDecimal("NUAPO"));
 		q0.setNamedParameter("P_SEQAPA", ampVO.asBigDecimal("SEQAPA"));
 		q0.setNamedParameter("P_CODPRODMP", ampVO.asBigDecimal("CODPRODMP"));
-		
+
 		ResultSet r0 = q0.executeQuery("SELECT DISTINCT LMP.CODLOCALBAIXA\r\n"
 				+ "FROM TPRAMP AMP\r\n"
 				+ "JOIN TPRAPO APO ON APO.NUAPO = AMP.NUAPO\r\n"
@@ -86,11 +86,11 @@ public class ValidaLoteSeparacao implements EventoProgramavelJava {
 				+ "JOIN TPRIPA IPA ON IPA.IDIPROC = IATV.IDIPROC\r\n"
 				+ "JOIN TPRLMP LMP ON LMP.IDEFX = EFX.IDEFX AND LMP.CODPRODPA = IPA.CODPRODPA \r\n"
 				+ "WHERE AMP.NUAPO = :P_NUAPO AND AMP.SEQAPA = :P_SEQAPA AND LMP.CODPRODMP = :P_CODPRODMP");
-		
+
 		if(r0.next()) {
 			codlocal = r0.getBigDecimal("CODLOCALBAIXA");
 		}
-		
+
 		NativeSql q1 = new NativeSql(jdbc);
 		q1.setNamedParameter("P_CODPROD", ampVO.asBigDecimal("CODPRODMP"));
 		q1.setNamedParameter("P_CONTROLE", ampVO.asString("CONTROLEMP"));
@@ -98,14 +98,14 @@ public class ValidaLoteSeparacao implements EventoProgramavelJava {
 				+ "FROM AD_TRASETIQUETA \r\n"
 				+ "WHERE CODPROD = :P_CODPROD \r\n"
 				+ "AND CONTROLE = :P_CONTROLE ");
-		
+
 		if(r1.next()) {
 			if (!codlocal.equals(r1.getBigDecimal("CODLOCAL"))) {
 				throw new Error("<b>Local da etiqueta é diferente do local de baixa cadastrado do produto. Verifique o cadastro.</b>");
 			}
 		}
-		
-		
+
+
 		NativeSql q = new NativeSql(jdbc);
 		q.setNamedParameter("P_CODEMP", BigDecimal.valueOf(6));
 		q.setNamedParameter("P_CODPROD", ampVO.asBigDecimal("CODPRODMP"));
@@ -118,12 +118,12 @@ public class ValidaLoteSeparacao implements EventoProgramavelJava {
 				+ " AND CODLOCAL = :P_CODLOCAL "
 				+ " AND CODPARC = 0 "
 				+ " AND CONTROLE = :P_CONTROLE ");
-		
-		
-		
+
+
+
 		if(r.next()) {
 			BigDecimal estoque = r.getBigDecimal("ESTOQUE");
-			
+
 			if(estoque.compareTo(ampVO.asBigDecimal("QTD")) < 0) {
 				if (estoque.compareTo(BigDecimal.ZERO) > 0) {
 					ampVO.setProperty("QTD", estoque);

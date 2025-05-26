@@ -9,8 +9,6 @@ import java.util.Collection;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import br.com.sankhya.dctm.helper.EnviaEmailHelper;
-import br.com.sankhya.dctm.helper.LiberacaoLimiteHelper;
 import br.com.sankhya.extensions.eventoprogramavel.EventoProgramavelJava;
 import br.com.sankhya.jape.EntityFacade;
 import br.com.sankhya.jape.dao.JdbcWrapper;
@@ -25,6 +23,8 @@ import br.com.sankhya.modelcore.MGEModelException;
 import br.com.sankhya.modelcore.auth.AuthenticationInfo;
 import br.com.sankhya.modelcore.util.DynamicEntityNames;
 import br.com.sankhya.modelcore.util.EntityFacadeFactory;
+import br.com.sankhya.truss.helper.EnviaEmailHelper;
+import br.com.sankhya.truss.helper.LiberacaoLimiteHelper;
 import br.com.sankhya.ws.ServiceContext;
 
 public class SolicitaLiberacao implements EventoProgramavelJava {
@@ -60,23 +60,23 @@ public class SolicitaLiberacao implements EventoProgramavelJava {
 		try {
 			DynamicVO vo = (DynamicVO) event.getVo();
 			BigDecimal codClt = vo.asBigDecimal("CODCLT");
-			
+
 			JapeWrapper daoPadraoClass = JapeFactory.dao(DynamicEntityNames.PADRAO_CLASSIFICACAO);
 			JapeWrapper clcDAO = JapeFactory.dao("CaracteristicaAnalisavel");
 			JapeWrapper libProdDAO = JapeFactory.dao("AD_LIBPROD");
 			DynamicVO registroPadraoClass = daoPadraoClass.findByPK(codClt);
-			
+
 			BigDecimal codProd = registroPadraoClass.asBigDecimal("CODPROD");
 			String status = registroPadraoClass.asString("AD_STATUS") == null ? "":registroPadraoClass.asString("AD_STATUS");
 			String usoProd = getUsoProd(codProd);
 			if(!usoProd.equals("P")) {
 				return;
 			}
-			
+
 			/*if(status.equals("2")) {
 				throw new MGEModelException("Não é possível alterar. Faça a liberação de limites primeiro.");
 			}*/
-			
+
 			BigDecimal codClc = vo.asBigDecimal("CODCLC");
 			BigDecimal nuChave = new BigDecimal(codClt.toString() + codClc.toString());
 			String tabela = "TGACLI";
@@ -102,11 +102,11 @@ public class SolicitaLiberacao implements EventoProgramavelJava {
 					mensagem.append("<br>");
 		        }
 			}else if (quando.equals("delete")) {
-				
-				
-				
+
+
+
 				BigDecimal usuarioLogado = ((AuthenticationInfo)ServiceContext.getCurrent().getAutentication()).getUserID();
-				
+
 				EntityFacade dwfFacade = EntityFacadeFactory.getDWFFacade();
 
 				JdbcWrapper jdbc = dwfFacade.getJdbcWrapper();
@@ -114,12 +114,12 @@ public class SolicitaLiberacao implements EventoProgramavelJava {
 
 				CallableStatement cstmt = jdbc.getConnection().prepareCall("{call AD_STP_INSEREPAD(?, ?, ?, ?, ?, ?, ?)}");
 				cstmt.setQueryTimeout(60);
-				
+
 				String caracteristica = clcDAO.findByPK(codClc).asString("NOMECLC");
-				
+
 				String observacao = "Deletada Característica de Classificação " + codClc +" no Padrão " + codClt + "\n Característica Deletada: " + caracteristica;
-				
-				
+
+
 				cstmt.setBigDecimal(1, codProd);
 				cstmt.setBigDecimal(2, usuarioLogado);
 				cstmt.setBigDecimal(3, sequencia);
@@ -127,51 +127,51 @@ public class SolicitaLiberacao implements EventoProgramavelJava {
 				cstmt.setBigDecimal(5, codClt);
 				cstmt.setBigDecimal(6, codClc);
 				cstmt.setString(7, nuChave.toString());
-				
+
 				cstmt.execute();
-				
+
 				throw new Exception ("Uma liberação com o evento 1005 foi solicitada. O item será deletado quando ocorrer a liberação.");
-				
-				
-				
+
+
+
 			}
-			
+
 			LiberacaoLimiteHelper llh = new LiberacaoLimiteHelper();
-			FluidCreateVO lib = llh.criaLiberacaoLimite(nuChave, tabela, evento, sequencia, BigDecimal.ZERO, BigDecimal.ZERO, 
+			FluidCreateVO lib = llh.criaLiberacaoLimite(nuChave, tabela, evento, sequencia, BigDecimal.ZERO, BigDecimal.ZERO,
 					codUsuSolic, dataAtual, BigDecimal.ZERO, BigDecimal.ONE, assunto, BigDecimal.ZERO,
 					null, null, null, null, BigDecimal.ZERO);
-			
+
 			llh.insereCampoLiberacaoLimite(lib, "AD_CODPROD", codProd.toString());
 			llh.insereCampoLiberacaoLimite(lib, "AD_CODCLT", codClt);
 			llh.insereCampoLiberacaoLimite(lib, "AD_CODCLC", codClc);
-			
+
 			llh.salvaLiberacaoLimite(lib);
-			
+
 			Collection<DynamicVO> users = JapeFactory.dao(DynamicEntityNames.USUARIO).find(" CODUSU IN (SELECT CODUSU FROM TSILIM WHERE EVENTO = ?)",evento);
 			for (DynamicVO user : users) {
 				BigDecimal codUsu = user.asBigDecimal("CODUSU");
 				String email = user.asString("EMAIL");
-				
+
 				EnviaEmailHelper eeh = new EnviaEmailHelper();
 				eeh.insereEmail(mensagem.toString().toCharArray(), new BigDecimal("3"), assunto, email, codUsu);
 			}
-			
+
 			JapeWrapper daoLPA = JapeFactory.dao(DynamicEntityNames.PRODUTO_ACABADO);
 			Collection<DynamicVO> registrosTPRLPA = daoLPA.find(" CODPRODPA = ? AND IDPROC IN (SELECT PRC.IDPROC FROM TPRPRC PRC WHERE PRC.VERSAO = (SELECT MAX(PRC2.VERSAO) FROM TPRPRC PRC2 WHERE PRC2.CODPRC = PRC.CODPRC))"
 					,codProd);
-			
+
 			Collection<DynamicVO> libProdVOs = libProdDAO.find("CODPRODPA = ?", codProd);
-			
+
 			for(DynamicVO libProdVO : libProdVOs) {
 				libProdDAO.prepareToUpdate(libProdVO)
 				.set("LIBPADROES", "N")
 				.update();
 			}
-			
+
 			/*for (DynamicVO registroTPRLPA : registrosTPRLPA) {
 				daoLPA.prepareToUpdate(registroTPRLPA).set("AD_LIBERADO", "N").update();
 			}*/
-			
+
 			daoPadraoClass.prepareToUpdate(registroPadraoClass).set("AD_STATUS", "2").update();
 			vo.setProperty("AD_BLOQUEADO", "S");
 		} catch (Exception e) {
@@ -179,12 +179,12 @@ public class SolicitaLiberacao implements EventoProgramavelJava {
 			throw new MGEModelException(e.toString());
 		}
 	}
-	
+
 	private String getUsoProd(BigDecimal codProd) throws Exception {
 		DynamicVO registro = JapeFactory.dao(DynamicEntityNames.PRODUTO).findByPK(codProd);
 		return registro.asString("USOPROD");
 	}
-	
+
 	private BigDecimal buscaSequenciaTSILIB(BigDecimal nuChave, String tabela, BigDecimal evento) throws Exception {
 		Collection<DynamicVO> registro = JapeFactory.dao(DynamicEntityNames.LIBERACAO_LIMITE)
 				.find(" nuchave = " + nuChave + " and tabela = '" + tabela + "' and evento = " + evento);
@@ -192,5 +192,5 @@ public class SolicitaLiberacao implements EventoProgramavelJava {
 		BigDecimal qtdRegistro = new BigDecimal(qtdRegistroInt);
 		return qtdRegistro.add(BigDecimal.ONE);
 	}
-	
+
 }

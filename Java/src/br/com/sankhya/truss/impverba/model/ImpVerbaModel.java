@@ -3,14 +3,14 @@ package br.com.sankhya.truss.impverba.model;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 
-/* 
+/*
  * Modelo utilizado na Rotina que realiza a importação de um csv com um determinado template para a tela controle de verbas.
  * Código para atendimento do seguinte card: https://grupoboticario.kanbanize.com/ctrl_board/301/cards/1578963/details/
- * 
+ *
  * */
 
 public class ImpVerbaModel {
-	
+
 	Timestamp dtInclusao;
 	BigDecimal vlrInicialVerba;
 	BigDecimal codemp;
@@ -19,7 +19,7 @@ public class ImpVerbaModel {
 	Timestamp dtFinal;
 	BigDecimal idImp;
 	String cnpjParc;
-	
+
 	public Timestamp getDtInclusao() {
 		return dtInclusao;
 	}
@@ -68,6 +68,6 @@ public class ImpVerbaModel {
 	public void setCnpjParc(String cnpjParc) {
 		this.cnpjParc = cnpjParc;
 	}
-	
-	
+
+
 }

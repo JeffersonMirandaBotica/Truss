@@ -10,14 +10,14 @@ public class IntegraProdutosAction implements AcaoRotinaJava {
 	public void doAction(ContextoAcao ctx) throws Exception {
 		// TODO Auto-generated method stub
 		try {
-			
-			
-			
+
+
+
 			IntegraProdutosHelper.integraProdutos(null);
 		} catch(Exception e) {
 			ctx.mostraErro(e.getMessage());
 		}
-		
+
 	}
 
 }

@@ -39,12 +39,14 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 	int ultCod = 0;
 	BigDecimal codLocal;
 	String codBarrasPalete;
-	
+
+	@Override
 	public void doAction(ContextoAcao ctx) throws Exception {
 		System.out.println("GerarEtiqueta.doAction()");
 
-		if (!ctx.confirmarSimNao("Confirma", "Deseja prosseguir?", 1))
+		if (!ctx.confirmarSimNao("Confirma", "Deseja prosseguir?", 1)) {
 			return;
+		}
 
 		System.out.println("GerarEtiqueta.doAction()");
 
@@ -91,8 +93,8 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 			System.out.println("codEmp: " + codEmp);
 			codBarrasPalete = StringUtils.getValueOrDefault((String) ctx.getParam("CODBARRASPALETE"), " ");
 			System.out.println("codBarrasPalete: " + codBarrasPalete);
-			
-			
+
+
 			gerarEtiqueta();
 
 		} catch (Exception e) {
@@ -109,7 +111,7 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 		JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
 		NativeSql nativeSql = new NativeSql(jdbc);
-		
+
 		NativeSql q1 = new NativeSql(jdbc);
 		q1.setNamedParameter("P_CODBARRASPALETE", codBarrasPalete);
 		ResultSet r1 = q1.executeQuery("SELECT COUNT(1) AS QTDZERADA "
@@ -117,19 +119,19 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 				+ "JOIN AD_TRASETIQUETA ETIQ ON ETIQ.CODBARRAS = RAST.CODBARRASETIQUETA "
 				+ "WHERE RAST.CODBARRASETIQUETAPALETE = :P_CODBARRASPALETE "
 				+ "AND ETIQ.QTDEMB = 0 ");
-		
+
 		BigDecimal qtdZerada = BigDecimal.ZERO;
-		
+
 		if(r1.next()) {
 			qtdZerada = r1.getBigDecimal("QTDZERADA");
 		}
-		
+
 		if (qtdZerada.compareTo(BigDecimal.ZERO) <= 0) {
 			throw new MGEModelException("Não existe etiqueta caixa zerada para a etiqueta palete informada.");
 		} else {
 			qtdEtiq = qtdZerada.intValue();
 		}
-		
+
 		if (!nroOp.equals("X")) {
 
 			StringBuilder sql = new StringBuilder();
@@ -144,7 +146,7 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 				nroLote = StringUtils.getEmptyAsNull(query1.getString("NROLOTE"));
 				System.out.println("nroLote: " + nroLote);
 			}
-			
+
 			StringBuilder sql3 = new StringBuilder();
 			sql3.append(" SELECT COUNT(1) + 1 AS COUNTCAIXA ");
 			sql3.append(" FROM AD_TRASETIQUETA  E ");
@@ -155,7 +157,7 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 			ResultSet query3 = nativeSql.executeQuery(sql3.toString());
 			System.out.println("query3: " + sql3.toString());
 			if (query3.next()) {
-				countCaixa = (int) query3.getInt("COUNTCAIXA");// BigDecimalUtil.getValueOrZero((BigDecimal)
+				countCaixa = query3.getInt("COUNTCAIXA");// BigDecimalUtil.getValueOrZero((BigDecimal)
 																// query3.getBigDecimal("COUNTCAIXA"));
 				System.out.println("countCaixa: " + countCaixa);
 
@@ -196,7 +198,7 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 			ResultSet query2 = nativeSql.executeQuery(sqlNota2.toString());
 			System.out.println("query2: " + sqlNota2.toString());
 			if (query2.next()) {
-				countCaixa = (int) query2.getInt("COUNTCAIXA");
+				countCaixa = query2.getInt("COUNTCAIXA");
 				System.out.println("countCaixa: " + countCaixa);
 			}
 
@@ -213,7 +215,7 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 		ResultSet query2 = nativeSql.executeQuery(sql2.toString());
 		System.out.println("query2: " + sql2.toString());
 		if (query2.next()) {
-			codLocal = BigDecimalUtil.getValueOrZero((BigDecimal) query2.getBigDecimal("CODLOCALPADRAO"));
+			codLocal = BigDecimalUtil.getValueOrZero(query2.getBigDecimal("CODLOCALPADRAO"));
 			System.out.println("codLocal: " + codLocal);
 
 		}
@@ -225,7 +227,7 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 		ResultSet query4 = nativeSql.executeQuery(sql4.toString());
 		System.out.println("query4: " + sql4.toString());
 		if (query4.next()) {
-			ultCod = (int) query4.getInt("ULTCOD");
+			ultCod = query4.getInt("ULTCOD");
 			System.out.println("countCaixa: " + ultCod);
 		}
 
@@ -243,9 +245,9 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 						.set("NROCAIXA", BigDecimal.valueOf(countCaixa)).set("GERARMAIOR", "S")
 						.set("CODLOCAL", codLocal).set("CODEMP", new BigDecimal(codEmp))
 						.set("OBSERVACAO", "Reimpressão Inventário").save();
-				
+
 				substituiEtiqueta(save.asBigDecimal("CODETIQ"));
-				
+
 			}
 			if (!nroUnico.equals("X") && !controle.equals(" ")) {
 
@@ -257,7 +259,7 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 						.set("NROCAIXA", BigDecimal.valueOf(countCaixa)).set("GERARMAIOR", "S")
 						.set("CODLOCAL", codLocal).set("CODEMP", new BigDecimal(codEmp))
 						.set("OBSERVACAO", "Reimpressão Inventário").save();
-				
+
 				substituiEtiqueta(save.asBigDecimal("CODETIQ"));
 
 			}
@@ -265,22 +267,22 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 			countCaixa = countCaixa + 1;
 
 		}
-		
+
 		nativeSql.executeUpdate(" update tgfnum set ultcod = " + ultCod + " where arquivo = 'AD_TRASETIQUETA' ");
-		
+
 	}
-	
-	
+
+
 	private void substituiEtiqueta(BigDecimal codetiq) throws Exception {
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 		JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
 		JapeWrapper etiquetaDAO = JapeFactory.dao("AD_TRASETIQUETA");
 		JapeWrapper trastreabilidadeDAO = JapeFactory.dao("AD_TRASTREABILIDADE");
 		String oldCodBarras = "";
-		
+
 		String newCodBarras = etiquetaDAO.findByPK(codetiq).asString("CODBARRAS");
-		
-		
+
+
 		NativeSql q = new NativeSql(jdbc);
 		q.setNamedParameter("P_CODBARRASPALETE", codBarrasPalete);
 		ResultSet r1 = q.executeQuery("SELECT MAX(CODBARRAS) AS CODBARRAS "
@@ -289,13 +291,13 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 				+ "WHERE RAST.CODBARRASETIQUETAPALETE = :P_CODBARRASPALETE "
 				+ "AND ETIQ.QTDEMB = 0 "
 				+ "AND ETIQ.SITUACAO <> 'CAN' ");
-		
+
 		if(r1.next()) {
 			oldCodBarras = r1.getString("CODBARRAS");
 		}
-		
+
 		DynamicVO etiquetaVO = etiquetaDAO.findOne("CODBARRAS = ?", oldCodBarras);
-		
+
 		etiquetaDAO.prepareToUpdate(etiquetaVO)
 		.set("SITUACAO", "CAN")
 		.set("OBSCANCEL", "Etiqueta Cancelada pela substituição na rotina de inventário. Etiqueta substituta: " + newCodBarras)
@@ -305,9 +307,9 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 		etiquetaDAO.prepareToUpdateByPK(codetiq)
 		.set("CODBARRASSUBST", oldCodBarras)
 		.update();
-		
+
 	}
-	
+
 
 	private static void openSession() {
 		try {

@@ -1,14 +1,15 @@
 /*    */ package br.com.evolvesolucoes.truss;
-/*    */ 
+/*    */
 /*    */ import br.com.sankhya.extensions.actionbutton.AcaoRotinaJava;
 /*    */ import br.com.sankhya.extensions.actionbutton.ContextoAcao;
-/*    */ 
-/*    */ 
-/*    */ 
+/*    */
+/*    */
+/*    */
 /*    */ public class teste
 /*    */   implements AcaoRotinaJava
 /*    */ {
-/*    */   public void doAction(ContextoAcao ctx) throws Exception {
+/*    */   @Override
+public void doAction(ContextoAcao ctx) throws Exception {
 /* 12 */     ctx.mostraErro("ENTROU AQUI");
 /*    */   }
 /*    */ }

@@ -22,7 +22,7 @@ public class StatusFaturamento implements EventoProgramavelJava {
 	private static SessionHandle hnd = null;
 	private static JdbcWrapper jdbc	= null;
 	private static Boolean isOpen = Boolean.FALSE;
-	
+
 	@Override
 	public void afterDelete(PersistenceEvent evt) throws Exception {
 		// TODO Auto-generated method stub
@@ -31,25 +31,25 @@ public class StatusFaturamento implements EventoProgramavelJava {
 	@Override
 	public void afterInsert(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void afterUpdate(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void beforeCommit(TransactionContext arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void beforeDelete(PersistenceEvent evt) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
@@ -63,53 +63,53 @@ public class StatusFaturamento implements EventoProgramavelJava {
 		// TODO Auto-generated method stub
 		analiseStatusFaturamento(evt, "U");
 	}
-	
+
 	private void analiseStatusFaturamento(PersistenceEvent evt, String momento) throws Exception {
-		
-		try {	
+
+		try {
 			openSession();
-			
+
 			JapeWrapper iteDAO = JapeFactory.dao(DynamicEntityNames.ITEM_NOTA);
 			JapeWrapper cabDAO = JapeFactory.dao(DynamicEntityNames.CABECALHO_NOTA);
 			CorteHelper corteHelper = new CorteHelper();
-			
-			
+
+
 			DynamicVO newVO = (DynamicVO) evt.getVo();
-			
+
 			BigDecimal nunotaorig = newVO.asBigDecimal("NUNOTAORIG");
 			BigDecimal sequenciaorig = newVO.asBigDecimal("SEQUENCIAORIG");
 			BigDecimal nunota = newVO.asBigDecimal("NUNOTA");
-			
+
 			String corte = corteHelper.validaTopCorte(cabDAO.findByPK(nunotaorig).asBigDecimal("CODTIPOPER"), jdbc);
-			
+
 			String tipmovorig = cabDAO.findByPK(nunotaorig).asString("TIPMOV");
 			String tipmovdest = cabDAO.findByPK(nunota).asString("TIPMOV");
-			
+
 			if (!("P".equals(tipmovorig) && "V".equals(tipmovdest))) {
 				return;
 			}
-			
+
 			/*
 			if(!"S".equals(corte)) {
 				return;
 			}
 			*/
-			
-			Boolean parcial = false;
-			Boolean liberadoParcial = false;
+
+			boolean parcial = false;
+			boolean liberadoParcial = false;
 			String status = null;
-			
+
 			if("I".equals(momento) || "U".equals(momento)) {
 				Collection<DynamicVO> itesVO = iteDAO.find("NUNOTA = ? AND SEQUENCIA <> ?", nunotaorig, sequenciaorig);
-				
+
 				for(DynamicVO iteVO : itesVO) {
 					if (!iteVO.asBigDecimal("QTDENTREGUE").equals(iteVO.asBigDecimal("QTDNEG"))) {
 						parcial = true;
 					}
 				}
-				
+
 				status = parcial ? "24" : "25";
-				
+
 				cabDAO.prepareToUpdateByPK(nunotaorig)
 				.set("AD_STATUSPED", status)
 				.update();
@@ -119,15 +119,15 @@ public class StatusFaturamento implements EventoProgramavelJava {
 		} finally {
 			closeSession();
 		}
-		
-	}	
-	
+
+	}
+
 	private static void openSession() {
 		try {
 			if (isOpen && jdbc != null) {
 				return;
 			}
-			
+
 			EntityFacade dwfFacade = EntityFacadeFactory.getDWFFacade();
 			hnd = JapeSession.open();
 			hnd.setFindersMaxRows(-1);
@@ -139,7 +139,7 @@ public class StatusFaturamento implements EventoProgramavelJava {
 			e.printStackTrace();
 		}
 	}
-	
+
 	private static void closeSession() {
 		if(isOpen) {
 			JdbcWrapper.closeSession(jdbc);
@@ -148,5 +148,5 @@ public class StatusFaturamento implements EventoProgramavelJava {
 			jdbc = null;
 		}
 	}
-	
+
 }

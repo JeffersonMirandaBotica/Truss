@@ -7,19 +7,20 @@ import br.com.sankhya.truss.lysi.truss.geral.GeradorProducao;
 
 
 public class EventoGerarProducao  implements ScheduledAction {
-	
-	
+
+
+	@Override
 	public void onTime(ScheduledActionContext contexto) {
-		
+
 		try {
 			new GeradorProducao().gerarProducao();
 		} catch (Exception e) {
 			System.out.println("*** GERADOR PRODUCAO - ERRO ***");
 			e.printStackTrace();
-		} 
-		
+		}
+
 	}
-	
-	
-	
+
+
+
 }

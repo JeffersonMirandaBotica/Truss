@@ -27,51 +27,51 @@ public class ValidaPermissaoUsuarioIte implements EventoProgramavelJava {
 	private static SessionHandle hnd = null;
 	private static JdbcWrapper jdbc	= null;
 	private static Boolean isOpen = Boolean.FALSE;
-	
+
 	@Override
 	public void beforeUpdate(PersistenceEvent evt) throws MGEModelException {
 		// TODO Auto-generated method stub
-		
+
 		JapeWrapper gruDAO = JapeFactory.dao(DynamicEntityNames.GRUPO_USUARIO);
 		JapeWrapper usuDAO = JapeFactory.dao(DynamicEntityNames.USUARIO);
 		JapeWrapper cabDAO = JapeFactory.dao(DynamicEntityNames.CABECALHO_NOTA);
 		CorteHelper corteHelper = new CorteHelper();
-		
+
 		try {
 			openSession();
 			DynamicVO iteVO = (DynamicVO) evt.getVo();
 			DynamicVO cabVO = cabDAO.findByPK(iteVO.asBigDecimal("NUNOTA"));
-			
-			
+
+
 			boolean confirmando = JapeSession.getProperty(AtributosRegras.CONFIRMANDO) != null;
-			
+
 			String corte = corteHelper.validaTopCorte(cabVO.asBigDecimal("CODTIPOPER"), jdbc);
 			if("N".equals(corte) || confirmando) {
 				return;
 			}
-			
+
 			BigDecimal usuarioLogado = ((AuthenticationInfo)ServiceContext.getCurrent().getAutentication()).getUserID();
 			String permiteAlterar = gruDAO.findByPK(usuDAO.findByPK(usuarioLogado).asBigDecimal("CODGRUPO")).asString("AD_ALTERAPEDCONF");
-			
+
 			if("L".equals(cabVO.asString("STATUSNOTA"))  && !"S".equals(permiteAlterar)) {
 				throw new Exception("Usuário não tem permissão para alterar documento confirmado. Verifique as permissões no grupo de usuários.");
 			}
-			
+
 		} catch(Exception e) {
 			e.printStackTrace();
 			MGEModelException.throwMe(new Exception("Falha no evento ValidaPermissaoUsuario " + e.getMessage()));
 		} finally {
 			closeSession();
 		}
-		
+
 	}
-	
+
 	private static void openSession() {
 		try {
 			if (isOpen && jdbc != null) {
 				return;
 			}
-			
+
 			EntityFacade dwfFacade = EntityFacadeFactory.getDWFFacade();
 			hnd = JapeSession.open();
 			hnd.setFindersMaxRows(-1);
@@ -83,7 +83,7 @@ public class ValidaPermissaoUsuarioIte implements EventoProgramavelJava {
 			e.printStackTrace();
 		}
 	}
-	
+
 	private static void closeSession() {
 		if(isOpen) {
 			JdbcWrapper.closeSession(jdbc);
@@ -92,44 +92,44 @@ public class ValidaPermissaoUsuarioIte implements EventoProgramavelJava {
 			jdbc = null;
 		}
 	}
-	
-	
-	
+
+
+
 	@Override
 	public void afterDelete(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void afterInsert(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void afterUpdate(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void beforeCommit(TransactionContext arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void beforeDelete(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void beforeInsert(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
-	
+
 }

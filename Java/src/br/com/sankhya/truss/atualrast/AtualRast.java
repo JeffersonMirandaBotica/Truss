@@ -13,19 +13,19 @@ public class AtualRast implements AcaoRotinaJava {
 	public void doAction(ContextoAcao ctx) throws Exception {
 		// TODO Auto-generated method stub
 		JapeWrapper rastDAO = JapeFactory.dao("AD_TRASCONF");
-		
-		
+
+
 		String nuconf = (String) ctx.getParam("P_NUCONF");
-		
-		
+
+
 		rastDAO.prepareToUpdateByPK(new BigDecimal(nuconf))
 		.set("STATUS", "A")
 		.update();
-		
+
 		ctx.setMensagemRetorno("Concluído");
-		
-		
-		
+
+
+
 	}
 
 }

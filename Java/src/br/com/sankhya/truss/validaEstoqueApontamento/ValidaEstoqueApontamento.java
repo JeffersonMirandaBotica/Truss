@@ -1,5 +1,8 @@
 package br.com.sankhya.truss.validaEstoqueApontamento;
 
+import java.math.BigDecimal;
+import java.sql.ResultSet;
+
 import br.com.sankhya.extensions.eventoprogramavel.EventoProgramavelJava;
 import br.com.sankhya.jape.EntityFacade;
 import br.com.sankhya.jape.dao.JdbcWrapper;
@@ -8,9 +11,6 @@ import br.com.sankhya.jape.event.TransactionContext;
 import br.com.sankhya.jape.sql.NativeSql;
 import br.com.sankhya.jape.vo.DynamicVO;
 import br.com.sankhya.modelcore.util.EntityFacadeFactory;
-
-import java.math.BigDecimal;
-import java.sql.ResultSet;
 
 
 /*

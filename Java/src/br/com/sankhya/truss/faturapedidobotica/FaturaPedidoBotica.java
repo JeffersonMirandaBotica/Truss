@@ -28,22 +28,22 @@ public class FaturaPedidoBotica implements ScheduledAction {
 	@Override
 	public void onTime(ScheduledActionContext ctx) {
 		// TODO Auto-generated method stub
-		
-		
+
+
 		JdbcWrapper jdbc = null;
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 		JapeWrapper cabDAO = JapeFactory.dao("CabecalhoNota");
-		
-		
+
+
 		jdbc = dwfEntityFacade.getJdbcWrapper();
 		try {
 			jdbc.openSession();
-			
+
 			NativeSql q = new NativeSql(jdbc);
 			ResultSet r = null;
-			
+
 			r = q.executeQuery("SELECT NUNOTA FROM TGFCAB WHERE NVL(AD_FATURABOTICA,'N') = 'S' AND NVL(AD_FATURADOBOTICA,'N') = 'N'");
-			
+
 			while(r.next()) {
 				faturamentoAutomatico(r.getBigDecimal("NUNOTA"), "1");
 				cabDAO.prepareToUpdateByPK(r.getBigDecimal("NUNOTA"))
@@ -56,35 +56,35 @@ public class FaturaPedidoBotica implements ScheduledAction {
 			e.printStackTrace();
 		}
 	}
-	
+
 	private void faturamentoAutomatico(BigDecimal nuNota, String serie) {
-		
+
 		JapeSession.SessionHandle hnd = null;
 	    ServiceContext sctx = null;
-	    
+
 	    try {
-	    	hnd = JapeSession.open();	    	
+	    	hnd = JapeSession.open();
 	    	AuthenticationInfo auth = new AuthenticationInfo("SUP", BigDecimal.ZERO, BigDecimal.ZERO, Integer.valueOf(0));
 	        auth.makeCurrent();
 	    	sctx = new ServiceContext(null);
 	    	sctx.setAutentication(auth);
 	    	sctx.makeCurrent();
 	    	SPBeanUtils.setupContext(sctx);
-	    	JapeSessionContext.putProperty("agendador.faturamento.pedido", Boolean.valueOf(true));	    	
+	    	JapeSessionContext.putProperty("agendador.faturamento.pedido", Boolean.valueOf(true));
 	    } catch (Exception e) {
 			e.printStackTrace();
 		} finally {
 	    	JapeSession.close(hnd);
-	    } 
-	    
+	    }
+
 	    hnd = null;
 	    try {
-	    	
+
 	    	hnd = JapeSession.open();
 	        hnd.setPriorityLevel(JapeSession.LOW_PRIORITY);
-	        
+
 	        CentralFaturamento.ConfiguracaoFaturamento cfg = new CentralFaturamento.ConfiguracaoFaturamento();
-	        
+
 	        cfg.setUsaTopDestino(true);
 	        cfg.setDtFaturamento(new Timestamp(System.currentTimeMillis()));
 	        cfg.setUmaNotaPorPedido(true);
@@ -98,19 +98,19 @@ public class FaturaPedidoBotica implements ScheduledAction {
 	        cfg.setNfeDevolucaoViaRecusa(false);
 	        Collection<BigDecimal> notas = new ArrayList<>();
 	        notas.add(nuNota);
-	        
+
 	        FaturamentoHelper.faturarInterno(sctx, hnd, cfg, notas, null);
-	        
+
 	    } catch (Exception e) {
 
 			e.printStackTrace();
-			
+
 	    } finally {
-	    	
+
 	        JapeSession.close(hnd);
 	        hnd = null;
-	        
-	    } 
+
+	    }
 	}
 
 }

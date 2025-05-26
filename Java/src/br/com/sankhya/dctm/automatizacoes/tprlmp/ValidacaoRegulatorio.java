@@ -29,25 +29,25 @@ public class ValidacaoRegulatorio implements EventoProgramavelJava {
 	@Override
 	public void afterDelete(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void afterInsert(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void afterUpdate(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void beforeCommit(TransactionContext arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
@@ -67,94 +67,89 @@ public class ValidacaoRegulatorio implements EventoProgramavelJava {
 		// TODO Auto-generated method stub
 		this.valida(evt, "U");
 	}
-	
+
 	private void valida(PersistenceEvent evt, String quando) throws Exception, RuntimeException {
-		
+
 		boolean continua = false;
-		
+
 		if(JapeSession.getProperties().get("br.com.sankhya.truss.copiaKit") != null) {
 			continua = true;
 		}
-		
-		if(JapeSession.getProperties().get("br.com.sankhya.mgeprod.duplicando.processo.produtivo") != null && !continua) {
+
+		if((JapeSession.getProperties().get("br.com.sankhya.mgeprod.duplicando.processo.produtivo") != null && !continua) || (JapeSession.getProperties().get("br.com.mgeprod.isNotValidVersionaProcesso") != null && !continua)) {
 			return;
 		}
-		
-		
-		if(JapeSession.getProperties().get("br.com.mgeprod.isNotValidVersionaProcesso") != null && !continua) {
-			return;
-		}
-		
+
 		DynamicVO newVO = (DynamicVO) evt.getVo();
-		
+
 		JapeWrapper proDAO = JapeFactory.dao(DynamicEntityNames.PRODUTO);
 		JapeWrapper lpaDAO = JapeFactory.dao(DynamicEntityNames.PRODUTO_ACABADO);
 		JapeWrapper efxDAO = JapeFactory.dao(DynamicEntityNames.ELEMENTO_FLUXO);
-		
+
 		BigDecimal idproc = efxDAO.findByPK(newVO.asBigDecimal("IDEFX")).asBigDecimal("IDPROC");
 		String controlePA = newVO.asString("CONTROLEPA");
 		BigDecimal codprodpa = newVO.asBigDecimal("CODPRODPA");
-		
+
 		BigDecimal codprodmp = newVO.asBigDecimal("CODPRODMP");
-		
+
 		DynamicVO paVO = proDAO.findByPK(codprodpa);
 		DynamicVO mpVO = proDAO.findByPK(codprodmp);
-		
+
 		String usoprodPA = paVO.asString("USOPROD");
 		String usoprodMP = mpVO.asString("USOPROD");
-		
-		
+
+
 		if((usoprodPA.equals("P") || usoprodPA.equals("2")) && !usoprodMP.equals("M")) {
 			return;
 		}
-		
+
 		if(usoprodPA.equals("V") && !(usoprodMP.equals("M") || usoprodMP.equals("P") || usoprodMP.equals("2"))) {
 			return;
 		}
-		
+
 		BigDecimal usuarioLogado = ((AuthenticationInfo)ServiceContext.getCurrent().getAutentication()).getUserID();
 		BigDecimal seqLiberacao = getSeqLiberacao(codprodpa);
-		
-		
+
+
 		if(quando.equals("U")) {
 			DynamicVO oldVO = (DynamicVO) evt.getOldVO();
-			
+
 			if(!newVO.asBigDecimal("CODPRODMP").equals(oldVO.asBigDecimal("CODPRODMP")) || !newVO.asBigDecimal("QTDMISTURA").equals(oldVO.asBigDecimal("QTDMISTURA"))) {
 				this.insereTSILIB(codprodpa, usuarioLogado, oldVO.asBigDecimal("CODPRODMP"), newVO.asBigDecimal("CODPRODMP"), seqLiberacao, paVO.asString("DESCRPROD"), idproc, newVO.asBigDecimal("QTDMISTURA"), oldVO.asBigDecimal("QTDMISTURA"), "U");
-				
+
 				/*lpaDAO.prepareToUpdateByPK(idproc, codprodpa, controlePA)
 				.set("AD_LIBERADO", "N")
 				.update();*/
-				
+
 				setLiberado(codprodpa, idproc);
-				
+
 				newVO.setProperty("AD_BLOQUEADO", "S");
 			}
 		}
-		
+
 		if(quando.equals("I")) {
 			this.insereTSILIB(codprodpa, usuarioLogado, newVO.asBigDecimal("CODPRODMP"), newVO.asBigDecimal("CODPRODMP"), seqLiberacao, paVO.asString("DESCRPROD"), idproc, newVO.asBigDecimal("QTDMISTURA"), newVO.asBigDecimal("QTDMISTURA"), "I");
-			
+
 			/*lpaDAO.prepareToUpdateByPK(idproc, codprodpa, controlePA)
 			.set("AD_LIBERADO", "N")
 			.update();*/
-			
+
 			setLiberado(codprodpa, idproc);
-			
+
 			newVO.setProperty("AD_BLOQUEADO", "S");
 		}
-		
+
 		if(quando.equals("D")) {
 			JapeWrapper procDAO = JapeFactory.dao(DynamicEntityNames.PROCESSO_PRODUTIVO);
-			
+
 	        BigDecimal codprc = procDAO.findByPK(idproc).asBigDecimal("CODPRC");
 	        BigDecimal versao = procDAO.findByPK(idproc).asBigDecimal("VERSAO");
-	        
+
 			String observacao = "Deleção na composição do produto " + codprodpa + " - " + paVO.asString("DESCRPROD") + " | " +
 					"Processo: " + codprc + " Versão: " + versao + " | " +
 					" MP Removida: " + newVO.asBigDecimal("CODPRODMP") + " | " +
 					" Qtd. MP Removida: " + newVO.asBigDecimal("QTDMISTURA") + ".";
-			
+
 			EntityFacade dwfFacade = EntityFacadeFactory.getDWFFacade();
 
 			JdbcWrapper jdbc = dwfFacade.getJdbcWrapper();
@@ -162,7 +157,7 @@ public class ValidacaoRegulatorio implements EventoProgramavelJava {
 
 			CallableStatement cstmt = jdbc.getConnection().prepareCall("{call AD_STP_INSERETSILIB(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}");
 			cstmt.setQueryTimeout(60);
-				
+
 			cstmt.setBigDecimal(1, codprodpa);
 			cstmt.setBigDecimal(2, usuarioLogado);
 			cstmt.setBigDecimal(3, newVO.asBigDecimal("CODPRODMP"));
@@ -174,38 +169,38 @@ public class ValidacaoRegulatorio implements EventoProgramavelJava {
 			cstmt.setBigDecimal(9, newVO.asBigDecimal("QTDMISTURA"));
 			cstmt.setString(10, "D");
 			cstmt.setString(11, observacao);
-				
+
 			cstmt.execute();
-			
+
 			throw new Exception ("Uma liberação com o evento 1002 foi solicitada. O item será deletado quando ocorrer a liberação.");
-			
+
 
 		}
 	}
-	
+
 	private void setLiberado(BigDecimal codprodpa, BigDecimal idproc) throws Exception {
 		JapeWrapper prcDAO = JapeFactory.dao(DynamicEntityNames.PROCESSO_PRODUTIVO);
 		JapeWrapper libProdDAO = JapeFactory.dao("AD_LIBPROD");
-		
+
 		BigDecimal codprc = prcDAO.findByPK(idproc).asBigDecimal("CODPRC");
-		
+
 		DynamicVO libProdVO = libProdDAO.findByPK(codprodpa, codprc);
-		
+
 		libProdDAO.prepareToUpdate(libProdVO)
 		.set("LIBREGULATORIO", "N")
 		.update();
-		
+
 	}
-	
+
 	private void insereTSILIB(BigDecimal codprodpa, BigDecimal usuarioLogado, BigDecimal codProdMpOld, BigDecimal codProdMp, BigDecimal seqLiberacao, String descrProdPA, BigDecimal idproc, BigDecimal qtdmisturaold, BigDecimal qtdmistura, String tipo) throws Exception {
-		
+
 		JapeWrapper libDAO = JapeFactory.dao(DynamicEntityNames.LIBERACAO_LIMITE);
         JapeWrapper procDAO = JapeFactory.dao(DynamicEntityNames.PROCESSO_PRODUTIVO);
-		
+
         BigDecimal codprc = procDAO.findByPK(idproc).asBigDecimal("CODPRC");
         BigDecimal versao = procDAO.findByPK(idproc).asBigDecimal("VERSAO");
         String observacao = "";
-		
+
         if(tipo.equals("U")) {
 	        observacao = "Alteração na composição do produto " + codprodpa + " - " + descrProdPA + " | " +
 								"Processo: " + codprc + " Versão: " + versao + " | " +
@@ -222,7 +217,7 @@ public class ValidacaoRegulatorio implements EventoProgramavelJava {
 					" MP Removida: " + codProdMp + " | " +
 					" Qtd. MP Removida: " + qtdmisturaold + ".";
 		}
-		
+
         libDAO.create()
         .set("NUCHAVE", codprodpa)
         .set("TABELA", "TPRLMP")
@@ -254,13 +249,13 @@ public class ValidacaoRegulatorio implements EventoProgramavelJava {
         .set("AD_IDPROC", idproc)
         .set("AD_CODPRODPA", codprodpa)
         .save();
-        
-        
+
+
 	}
-	
+
 	private BigDecimal getSeqLiberacao(BigDecimal codProdPa) throws MGEModelException {
 		BigDecimal seqLiberacao = BigDecimal.ZERO;
-		
+
 		JdbcWrapper jdbc = null;
 		NativeSql sql = null;
 		ResultSet rset = null;
@@ -296,8 +291,8 @@ public class ValidacaoRegulatorio implements EventoProgramavelJava {
 			JdbcWrapper.closeSession(jdbc);
 			JapeSession.close(hnd);
 		}
-		
+
 		return seqLiberacao;
 	}
-	
+
 }

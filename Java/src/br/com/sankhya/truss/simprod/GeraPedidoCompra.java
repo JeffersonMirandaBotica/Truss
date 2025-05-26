@@ -21,21 +21,21 @@ public class GeraPedidoCompra implements AcaoRotinaJava {
 	private static SessionHandle hnd = null;
 	private static JdbcWrapper jdbc	= null;
 	private static Boolean isOpen = Boolean.FALSE;
-	
+
 	@Override
 	public void doAction(ContextoAcao ctx) throws Exception {
 		// TODO Auto-generated method stub
 		try {
 			openSession();
-			 
+
 			JapeWrapper iteDAO = JapeFactory.dao(DynamicEntityNames.ITEM_NOTA);
 			JapeWrapper cabDAO = JapeFactory.dao(DynamicEntityNames.CABECALHO_NOTA);
 			JapeWrapper proDAO = JapeFactory.dao(DynamicEntityNames.PRODUTO);
 			JapeWrapper cpaDAO = JapeFactory.dao("AD_CONFPEDCPASIMPROD");
 			JapeWrapper simiteDAO = JapeFactory.dao("AD_SIMPRODITE");
-			
+
 			DynamicVO cpaVO = cpaDAO.findByPK(BigDecimal.ONE);
-			
+
 			DynamicVO cabVO = cabDAO.create()
         			.set("CODPARC", cpaVO.asBigDecimal("CODPARC"))
         			.set("CODEMP", cpaVO.asBigDecimal("CODEMP"))
@@ -44,31 +44,31 @@ public class GeraPedidoCompra implements AcaoRotinaJava {
         			.set("CODTIPOPER", cpaVO.asBigDecimal("CODTIPOPER"))
         			.set("CODCENCUS", cpaVO.asBigDecimal("CODCENCUS"))
         			.save();
-			
+
 			Registro[] linhas = ctx.getLinhas();
 
 			for(Registro linha : linhas) {
-				 
+
 				iteDAO.create()
         		.set("NUNOTA", cabVO.asBigDecimal("NUNOTA"))
-        		.set("CODPROD", (BigDecimal) linha.getCampo("CODPROD"))
+        		.set("CODPROD", linha.getCampo("CODPROD"))
         		.set("CONTROLE", " ")
         		.set("VLRUNIT", BigDecimal.ZERO)
         		.set("VLRTOT", BigDecimal.ZERO)
-        		.set("QTDNEG", (BigDecimal) linha.getCampo("SUGCOMPRA"))
-        		.set("CODVOL", (String) linha.getCampo("CODVOL"))
+        		.set("QTDNEG", linha.getCampo("SUGCOMPRA"))
+        		.set("CODVOL", linha.getCampo("CODVOL"))
         		.set("CODLOCALORIG", cpaVO.asBigDecimal("CODLOCAL"))
         		.set("ATUALESTOQUE", BigDecimal.ZERO)
         		.save();
-				
-				simiteDAO.prepareToUpdateByPK((BigDecimal) linha.getCampo("NUSIM"),(BigDecimal) linha.getCampo("CODPROD"))
+
+				simiteDAO.prepareToUpdateByPK(linha.getCampo("NUSIM"),linha.getCampo("CODPROD"))
 				.set("NUNOTA", cabVO.asBigDecimal("NUNOTA"))
 				.update();
 			}
-			
+
 			ctx.setMensagemRetorno("Pedido de compra gerado: " + cabVO.asBigDecimal("NUNOTA"));
-			
-			
+
+
 		} catch(Exception e) {
 			e.printStackTrace();
 			MGEModelException.throwMe(new Exception(e.getMessage()));
@@ -76,13 +76,13 @@ public class GeraPedidoCompra implements AcaoRotinaJava {
 			closeSession();
 		}
 	}
-	
+
 	private static void openSession() {
 		try {
 			if (isOpen && jdbc != null) {
 				return;
 			}
-			
+
 			EntityFacade dwfFacade = EntityFacadeFactory.getDWFFacade();
 			hnd = JapeSession.open();
 			hnd.setFindersMaxRows(-1);
@@ -94,7 +94,7 @@ public class GeraPedidoCompra implements AcaoRotinaJava {
 			e.printStackTrace();
 		}
 	}
-	
+
 	private static void closeSession() {
 		if(isOpen) {
 			JdbcWrapper.closeSession(jdbc);

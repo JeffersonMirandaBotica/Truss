@@ -10,14 +10,14 @@ public class IntegraVoaAction implements AcaoRotinaJava {
 	public void doAction(ContextoAcao ctx) throws Exception {
 		// TODO Auto-generated method stub
 		try {
-			
-			
-			
+
+
+
 			IntegraVoaHelper.integraVoa(null);
 		} catch(Exception e) {
 			ctx.mostraErro(e.getMessage());
 		}
-		
+
 	}
 
 }

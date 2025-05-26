@@ -3,7 +3,6 @@ package br.com.sankhya.dctm.copiaComposicao.botaoacao;
 import java.math.BigDecimal;
 import java.util.Collection;
 
-import com.sankhya.util.BigDecimalUtil;
 import com.sankhya.util.TimeUtils;
 
 import br.com.sankhya.extensions.actionbutton.AcaoRotinaJava;
@@ -34,13 +33,15 @@ public class CopiaComposicao implements AcaoRotinaJava {
 	int codProdPaOrig = 0;
 	int idProcOrig = 0;
 
+	@Override
 	public void doAction(ContextoAcao ctx) throws Exception {
 		System.out.println("CopiaComposicao.doAction()");
-		
+
 		JapeSession.putProperty("br.com.sankhya.truss.copiaKit", true);
-		
-		if (!ctx.confirmarSimNao("Confirma", "Deseja realizar cópia da composição do produto selecionado?", 1))
+
+		if (!ctx.confirmarSimNao("Confirma", "Deseja realizar cópia da composição do produto selecionado?", 1)) {
 			return;
+		}
 
 		System.out.println("CopiaComposicao.doAction()");
 
@@ -52,7 +53,7 @@ public class CopiaComposicao implements AcaoRotinaJava {
 				e.printStackTrace();
 			}
 		}
-		
+
 		if (MsgErro.equals("")) {
 
 			ctx.setMensagemRetorno("Cópia realizada com sucesso.");
@@ -61,7 +62,7 @@ public class CopiaComposicao implements AcaoRotinaJava {
 		} else {
 			ctx.setMensagemRetorno(MsgErro);
 		}
-		
+
 	}
 
 	private void copiarComposicao(ContextoAcao ctx, Registro line) throws Exception {

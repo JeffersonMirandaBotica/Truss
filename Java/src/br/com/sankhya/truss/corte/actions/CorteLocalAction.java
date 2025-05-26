@@ -12,23 +12,23 @@ public class CorteLocalAction implements AcaoRotinaJava {
 	@Override
 	public void doAction(ContextoAcao ctx) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 		try {
 			Registro[] linhas = ctx.getLinhas();
-			
+
 			for(Registro linha : linhas) {
 				BigDecimal nunota = (BigDecimal) linha.getCampo("NUNOTA");
-				
+
 				CorteLocal corte = new CorteLocal();
-				
+
 				corte.executaCorteLocal(nunota);
-				
+
 			}
 		} catch(Exception e) {
 			e.printStackTrace();
 			ctx.mostraErro("Erro ao executar ação do corte local: \n" + e.getMessage());
 		}
-		
+
 	}
 
 }

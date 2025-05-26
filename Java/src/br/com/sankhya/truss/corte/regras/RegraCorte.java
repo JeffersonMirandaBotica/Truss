@@ -21,30 +21,31 @@ public class RegraCorte implements Regra {
 	private static SessionHandle hnd = null;
 	private static JdbcWrapper jdbc	= null;
 	private static Boolean isOpen = Boolean.FALSE;
-	
+
+	@Override
 	public void afterUpdate(ContextoRegra arg0) throws Exception {
-		
+
 		PrePersistEntityState state = arg0.getPrePersistEntityState();
 		DynamicVO newVO = state.getNewVO();
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 		CorteHelper corteHelper = new CorteHelper();
 		JapeWrapper cabDAO = JapeFactory.dao(DynamicEntityNames.CABECALHO_NOTA);
-		
+
 		try {
 			openSession();
-			
+
 			// AO CONFIRMAR UM ORÇAMENTO QUE TEM NA TOP A MARCAÇÃO "Passa pela Rotina de Corte", O STATUS DO PEDIDO PASSA A SER 18 - Enviado para Aprovação
 			if (isCabecalho(newVO)) {
 				String statusNota = arg0.getPrePersistEntityState().getNewVO().asString("STATUSNOTA");
 				String statusNotaOld = arg0.getPrePersistEntityState().getOldVO().asString("STATUSNOTA");
-				
+
 				if(!"1".equals(newVO.asString("AD_STATUSPED"))) {
 					return;
 				}
-				
+
 				if (statusNota.equals("L")) {
-					
-					
+
+
 					String corte = corteHelper.validaTopCorte(newVO.asBigDecimal("CODTIPOPER"), jdbc);
 					if("N".equals(corte)) {
 						return;
@@ -60,25 +61,25 @@ public class RegraCorte implements Regra {
 			closeSession();
 		}
 	}
-	
+
 	private boolean isCabecalho(DynamicVO vo) {
 		return vo.getValueObjectID().indexOf(DynamicEntityNames.CABECALHO_NOTA) > -1;
 	}
-	
+
 	private boolean isItem(DynamicVO vo) {
 		return vo.getValueObjectID().indexOf(DynamicEntityNames.ITEM_NOTA) > -1;
 	}
-	
+
 	private boolean isFinanceiro(DynamicVO vo) {
 		return vo.getValueObjectID().indexOf(DynamicEntityNames.FINANCEIRO) > -1;
 	}
-	
+
 	private static void openSession() {
 		try {
 			if (isOpen && jdbc != null) {
 				return;
 			}
-			
+
 			EntityFacade dwfFacade = EntityFacadeFactory.getDWFFacade();
 			hnd = JapeSession.open();
 			hnd.setFindersMaxRows(-1);
@@ -90,7 +91,7 @@ public class RegraCorte implements Regra {
 			e.printStackTrace();
 		}
 	}
-	
+
 	private static void closeSession() {
 		if(isOpen) {
 			JdbcWrapper.closeSession(jdbc);
@@ -99,40 +100,40 @@ public class RegraCorte implements Regra {
 			jdbc = null;
 		}
 	}
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
 	@Override
 	public void afterDelete(ContextoRegra arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void afterInsert(ContextoRegra arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void beforeDelete(ContextoRegra arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void beforeInsert(ContextoRegra arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void beforeUpdate(ContextoRegra arg0) throws Exception {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 }

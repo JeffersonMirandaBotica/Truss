@@ -40,11 +40,13 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 	int ultCod = 0;
 	BigDecimal codLocal;
 
+	@Override
 	public void doAction(ContextoAcao ctx) throws Exception {
 		System.out.println("GerarEtiqueta.doAction()");
 
-		if (!ctx.confirmarSimNao("Confirma", "Deseja prosseguir?", 1))
+		if (!ctx.confirmarSimNao("Confirma", "Deseja prosseguir?", 1)) {
 			return;
+		}
 
 		System.out.println("GerarEtiqueta.doAction()");
 
@@ -131,7 +133,7 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 			ResultSet query3 = nativeSql.executeQuery(sql3.toString());
 			System.out.println("query3: " + sql3.toString());
 			if (query3.next()) {
-				countCaixa = (int) query3.getInt("COUNTCAIXA");// BigDecimalUtil.getValueOrZero((BigDecimal)
+				countCaixa = query3.getInt("COUNTCAIXA");// BigDecimalUtil.getValueOrZero((BigDecimal)
 																// query3.getBigDecimal("COUNTCAIXA"));
 				System.out.println("countCaixa: " + countCaixa);
 
@@ -172,7 +174,7 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 			ResultSet query2 = nativeSql.executeQuery(sqlNota2.toString());
 			System.out.println("query2: " + sqlNota2.toString());
 			if (query2.next()) {
-				countCaixa = (int) query2.getInt("COUNTCAIXA");
+				countCaixa = query2.getInt("COUNTCAIXA");
 				System.out.println("countCaixa: " + countCaixa);
 			}
 
@@ -189,7 +191,7 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 		ResultSet query2 = nativeSql.executeQuery(sql2.toString());
 		System.out.println("query2: " + sql2.toString());
 		if (query2.next()) {
-			codLocal = BigDecimalUtil.getValueOrZero((BigDecimal) query2.getBigDecimal("CODLOCALPADRAO"));
+			codLocal = BigDecimalUtil.getValueOrZero(query2.getBigDecimal("CODLOCALPADRAO"));
 			System.out.println("codLocal: " + codLocal);
 
 		}
@@ -201,7 +203,7 @@ public class GerarEtiqueta implements AcaoRotinaJava {
 		ResultSet query4 = nativeSql.executeQuery(sql4.toString());
 		System.out.println("query4: " + sql4.toString());
 		if (query4.next()) {
-			ultCod = (int) query4.getInt("ULTCOD");
+			ultCod = query4.getInt("ULTCOD");
 			System.out.println("countCaixa: " + ultCod);
 		}
 

@@ -17,7 +17,6 @@ import org.jdom.Element;
 
 import com.google.gson.JsonObject;
 import com.sankhya.util.BigDecimalUtil;
-import com.sankhya.util.JsonUtils;
 import com.sankhya.util.StringUtils;
 import com.sankhya.util.TimeUtils;
 import com.sankhya.util.XMLUtils;
@@ -50,7 +49,6 @@ import br.com.sankhya.modelcore.helper.ConferenciaHelper;
 import br.com.sankhya.modelcore.util.DynamicEntityNames;
 import br.com.sankhya.modelcore.util.EntityFacadeFactory;
 import br.com.sankhya.modelcore.util.ListenerParameters;
-import br.com.sankhya.modelcore.util.SPBeanUtils;
 import br.com.sankhya.ws.ServiceContext;
 
 
@@ -59,38 +57,38 @@ public class FinalizaSeparacao implements AcaoRotinaJava {
 	private static final SimpleDateFormat	dhFormat			= new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 	private static final long				serialVersionUID	= 1L;
 	protected SessionContext				context;
-	
-	
-	
-	
+
+
+
+
 	@Override
 	public void doAction(ContextoAcao ctx) throws Exception {
 		// TODO Auto-generated method stub
 		try {
 		ServiceContext sctx = ServiceContext.getCurrent();
-		
+
 		Registro[] linhas = ctx.getLinhas();
-		
+
 		for(Registro linha : linhas) {
-			
+
 			BigDecimal qtdVolumes = new BigDecimal((Integer) ctx.getParam("P_QTDVOLUMES"));
 			String especie = (String) ctx.getParam("P_ESPECIE");
 			BigDecimal numConferencia = (BigDecimal) linha.getCampo("AD_NUMCONFERENCIA");
-			
-			
-			
+
+
+
 			finalizarConferencia(sctx, qtdVolumes, especie, numConferencia);
-			
-			
+
+
 		}
-		
+
 		} catch(Exception e) {
 			ctx.mostraErro(e.getMessage());
 		}
-		
+
 	}
-	
-	
+
+
 	public void finalizarConferencia(ServiceContext ctx, BigDecimal qtdVolumes, String especie, BigDecimal numConferencia) throws Exception {
 		JapeSession.SessionHandle hnd = null;
 		JdbcWrapper jdbc = null;
@@ -150,7 +148,7 @@ public class FinalizaSeparacao implements AcaoRotinaJava {
 
 			rs = sql.executeQuery();
 			CACHelper cacHelper = new CACHelper();
-			Map<String, Map<String, Object>> mapQtds = new HashMap<String, Map<String, Object>>();
+			Map<String, Map<String, Object>> mapQtds = new HashMap<>();
 
 			while (rs.next()) {
 				BigDecimal codProd = rs.getBigDecimal("CODPROD");
@@ -158,7 +156,7 @@ public class FinalizaSeparacao implements AcaoRotinaJava {
 				BigDecimal qtdConferida = rs.getBigDecimal("QTDCONF");
 
 				String chave = codProd + "-" + controle;
-				Map<String, Object> dados = new HashMap<String, Object>();
+				Map<String, Object> dados = new HashMap<>();
 				dados.put("CODPROD", codProd);
 				dados.put("CONTROLE", controle);
 				dados.put("QTDCONF", qtdConferida);
@@ -214,17 +212,17 @@ public class FinalizaSeparacao implements AcaoRotinaJava {
 							CentralItemNota centralItemNota = new CentralItemNota();
 							//centralItemNota.recalcularValores("QTDNEG", oldQtdNeg.toString(), itemVO, nuNota);
 							itemVO.setProperty("BASEICMS", null);
-							
-							
-							
-							
-							
-							ArrayList<DynamicVO> itensToUpdate = new ArrayList<DynamicVO>();
+
+
+
+
+
+							ArrayList<DynamicVO> itensToUpdate = new ArrayList<>();
 							itensToUpdate.add(itemVO);
 							DadosBarramento dadosBarramento = cacHelper.incluirAlterarItem(nuNota, ServiceContext.getCurrent(), null, false, itensToUpdate);
-							
+
 							Collection<Exception> erros = dadosBarramento.getErros();
-							
+
 							if (erros.size() > 0) {
 								throw new Exception("No foi possvel atualizar o Lote do pedido. Erro solicitado: " + erros.iterator().next());
 							}
@@ -239,8 +237,8 @@ public class FinalizaSeparacao implements AcaoRotinaJava {
 
 								centralItemNota.recalcularValores("VLRUNIT", "0", itemVO, nuNota);
 								centralItemNota.recalcularValores("VLRTOT", "0", itemVO, nuNota);
-								
-								itensToUpdate = new ArrayList<DynamicVO>();
+
+								itensToUpdate = new ArrayList<>();
 								itensToUpdate.add(itemVO);
 								cacHelper.incluirAlterarItem(nuNota, ServiceContext.getCurrent(), null, false, itensToUpdate);
 							}
@@ -300,7 +298,7 @@ public class FinalizaSeparacao implements AcaoRotinaJava {
 									novoItemVO.setProperty("USOPROD", "D");
 									novoItemVO.setProperty("CONTROLE", controle);
 
-									itensToUpdate = new ArrayList<DynamicVO>();
+									itensToUpdate = new ArrayList<>();
 									itensToUpdate.add(novoItemVO);
 									dadosBarramento = cacHelper.incluirAlterarItem(nuNota, ServiceContext.getCurrent(), null, false, itensToUpdate);
 
@@ -310,7 +308,7 @@ public class FinalizaSeparacao implements AcaoRotinaJava {
 										throw new Exception("No foi possvel atualizar o Usoprod do pedido. Erro solicitado: " + erros.iterator().next());
 									}
 								}
-								
+
 								if (novaSequencia != null && sequenciaOrigemFormula != null) {
 									Collection<DynamicVO> ligacoes = dwfEntityFacade.findByDynamicFinderAsVO(new FinderWrapper(DynamicEntityNames.COMPRA_VENDA_VARIOS_PEDIDO, "this.NUNOTA = ? AND this.NUNOTAORIG = ? AND this.SEQUENCIA = ?", new Object[] { nuNota, nuNota, novaSequencia }));
 
@@ -333,7 +331,7 @@ public class FinalizaSeparacao implements AcaoRotinaJava {
 
 								centralItemNota.recalcularValores("VLRUNIT", "0", novoItemVO, nuNota);
 
-								itensToUpdate = new ArrayList<DynamicVO>();
+								itensToUpdate = new ArrayList<>();
 								itensToUpdate.add(novoItemVO);
 								cacHelper.incluirAlterarItem(nuNota, ServiceContext.getCurrent(), null, false, itensToUpdate);
 							}
@@ -359,7 +357,7 @@ public class FinalizaSeparacao implements AcaoRotinaJava {
 							CentralItemNota centralItemNota = new CentralItemNota();
 							centralItemNota.recalcularValores("CONTROLE", " ", itemVO, nuNota);
 
-							ArrayList<DynamicVO> itensToUpdate = new ArrayList<DynamicVO>();
+							ArrayList<DynamicVO> itensToUpdate = new ArrayList<>();
 							itensToUpdate.add(itemVO);
 							DadosBarramento dadosBarramento = cacHelper.incluirAlterarItem(nuNota, ServiceContext.getCurrent(), null, false, itensToUpdate);
 
@@ -501,7 +499,7 @@ public class FinalizaSeparacao implements AcaoRotinaJava {
 					finder.setOrderBy("SEQUENCIA");
 					finder.setMaxResults(-1);
 					Collection<DynamicVO> itens = dwfEntityFacade.findByDynamicFinderAsVO(finder);
-					ArrayList<DynamicVO> itensToUpdate = new ArrayList<DynamicVO>();
+					ArrayList<DynamicVO> itensToUpdate = new ArrayList<>();
 
 					for (DynamicVO itemVO : itens) {
 						BigDecimal codLocalOrigem = itemVO.asBigDecimal("CODLOCALORIG");
@@ -573,7 +571,7 @@ public class FinalizaSeparacao implements AcaoRotinaJava {
 			JapeSession.close(hnd);
 		}
 	}
-	
+
 	private Element buildItemNota(DynamicVO itemVO) {
 		Element itensElem = new Element("itens");
 		itensElem.setAttribute("ATUALIZACAO_ONLINE", "false");
@@ -596,7 +594,7 @@ public class FinalizaSeparacao implements AcaoRotinaJava {
 		itensElem.addContent(itemElem);
 		return itensElem;
 	}
-	
+
 	private BigDecimal inserirTransferenciaInterna(EntityFacade dwfEntityFacade, BigDecimal nuNota, DynamicVO configVO) throws Exception {
 		DynamicVO cabVO = (DynamicVO) dwfEntityFacade.findEntityByPrimaryKeyAsVO(DynamicEntityNames.CABECALHO_NOTA, nuNota);
 
@@ -715,7 +713,7 @@ public class FinalizaSeparacao implements AcaoRotinaJava {
 		return nuNota;
 	}
 
-	
+
 
 
 

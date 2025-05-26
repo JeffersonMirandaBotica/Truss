@@ -10,11 +10,11 @@ public class LiberaCalculoRoyalties implements AcaoRotinaJava {
 	public void doAction(ContextoAcao ctx) throws Exception {
 		// TODO Auto-generated method stub
 		Registro[] linhas = ctx.getLinhas();
-		
+
 		for(Registro linha : linhas) {
 			linha.setCampo("AD_ERROROYALTIES", "N");
 		}
-		
+
 		ctx.setMensagemRetorno("Cálculo de Royalties Liberado");
 	}
 

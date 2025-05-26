@@ -33,7 +33,7 @@ public class EnviaEmailHelper {
 		mensagemVO.set("TENTENVIO", BigDecimal.ZERO);
 		mensagemVO.set("REENVIAR", "N");
 		mensagemVO.save();
-		
+
 		atualizaTGFNUM(getCodFila());
 	}
 
@@ -44,7 +44,7 @@ public class EnviaEmailHelper {
 	}
 
 	private BigDecimal getCodFila() throws Exception {
-		DynamicVO registroTGFNUM = JapeFactory.dao(DynamicEntityNames.CONTROLE_NUMERACAO).findOne(" ARQUIVO = 'TMDFMG'"); 
+		DynamicVO registroTGFNUM = JapeFactory.dao(DynamicEntityNames.CONTROLE_NUMERACAO).findOne(" ARQUIVO = 'TMDFMG'");
 		BigDecimal ultimoCod = registroTGFNUM.asBigDecimal("ULTCOD");
 		return ultimoCod.add(BigDecimal.ONE);
 	}

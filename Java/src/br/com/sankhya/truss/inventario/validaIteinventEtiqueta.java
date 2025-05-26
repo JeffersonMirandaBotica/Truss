@@ -2,7 +2,6 @@ package br.com.sankhya.truss.inventario;
 
 
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 
@@ -19,7 +18,6 @@ import br.com.sankhya.jape.vo.DynamicVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.modelcore.MGEModelException;
-import br.com.sankhya.modelcore.util.DynamicEntityNames;
 import br.com.sankhya.modelcore.util.EntityFacadeFactory;
 
 public class validaIteinventEtiqueta implements EventoProgramavelJava {
@@ -29,32 +27,39 @@ public class validaIteinventEtiqueta implements EventoProgramavelJava {
 	static BigDecimal codProd;
 	static BigDecimal codEtiq;
 
+	@Override
 	public void beforeUpdate(PersistenceEvent arg0) throws Exception {
 		String acao = "U";
 		gerenciador(arg0, acao);
 
 	}
 
+	@Override
 	public void afterDelete(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
 	}
 
+	@Override
 	public void afterInsert(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
 	}
 
+	@Override
 	public void afterUpdate(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
 	}
 
+	@Override
 	public void beforeCommit(TransactionContext arg0) throws Exception {
 		// TODO Auto-generated method stub
 	}
 
+	@Override
 	public void beforeDelete(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
 	}
 
+	@Override
 	public void beforeInsert(PersistenceEvent arg0) throws Exception {
 		String acao = "I";
 		gerenciador(arg0, acao);
@@ -74,11 +79,11 @@ public class validaIteinventEtiqueta implements EventoProgramavelJava {
 		BigDecimal nuInvent = BigDecimalUtil.getValueOrZero((BigDecimal) newVO.getProperty("NUINVENT"));
 		BigDecimal qtdProd = BigDecimalUtil.getValueOrZero((BigDecimal) newVO.getProperty("QTDPROD"));
 		String codBarras = StringUtils.getValueOrDefault((String) newVO.getProperty("CODBARRAS"), "X");
-		
+
 		System.out.println("nuInvent: " + nuInvent);
 		System.out.println("qtdProd: " + qtdProd);
 		System.out.println("codBarras: " + codBarras);
-		
+
 		StringBuilder sql = new StringBuilder();
 		sql.append(" SELECT  QTDEMB, CODBARRAS ");
 		sql.append(" FROM AD_TRASETIQUETA ETA ");
@@ -87,20 +92,20 @@ public class validaIteinventEtiqueta implements EventoProgramavelJava {
 						+ codBarras + "') AND QTDEMB = 0 ");
 		ResultSet query1 = nativeSql.executeQuery(sql.toString());
 		System.out.println("query1: " + sql.toString());
-		
+
 		String msgEtiquetasZeradas = "";
 		int qtdEtiquetaZerada = 0;
-		
+
 		while(query1.next()) {
 			qtdEtiquetaZerada++;
 			msgEtiquetasZeradas = msgEtiquetasZeradas + "<br>\n " + query1.getString("CODBARRAS");
 		}
-		
+
 		if(qtdEtiquetaZerada > 0) {
 			throw new MGEModelException(
 					"Existem etiquetas com quantidades iguais a zero. <br>\n Etiquetas Zeradas: <br>\n " + msgEtiquetasZeradas);
 		}
-		
+
 			/*
 		if (query1.next()) {
 			throw new MGEModelException(
@@ -126,13 +131,13 @@ public class validaIteinventEtiqueta implements EventoProgramavelJava {
 	 * + codBarras + "') "); ResultSet query2 =
 	 * nativeSql.executeQuery(sql2.toString()); System.out.println("query2: " +
 	 * sql2.toString());
-	 * 
+	 *
 	 * if (query2.next()) {
-	 * 
+	 *
 	 * BigDecimal qtdEmb2 = query2.getBigDecimal("QTDEMB");
-	 * 
+	 *
 	 * if (qtdEmb2.compareTo(BigDecimal.ZERO) == 0) {
-	 * 
+	 *
 	 * exibirMensagem(); throw new MGEModelException(
 	 * "Existem etiquetas com quantidades iguais a zero. Necessário bipar as caixas individualmente."
 	 * ); } }
@@ -141,24 +146,24 @@ public class validaIteinventEtiqueta implements EventoProgramavelJava {
 	// 90UC0002302479
 	/*
 	 * else {
-	 * 
+	 *
 	 * while (query1.next()) { qtdEmb =
 	 * BigDecimalUtil.getValueOrZero(query1.getBigDecimal("QTDEMB"));
 	 * codBarrasEtiqueta =
 	 * StringUtils.getValueOrDefault(query1.getString("CODBARRAS"), " "); codEtiq =
 	 * BigDecimalUtil.getValueOrZero(query1.getBigDecimal("CODETIQ")); codProd =
 	 * BigDecimalUtil.getValueOrZero(query1.getBigDecimal("CODPROD"));
-	 * 
+	 *
 	 * System.out.println("qtdEmb: " + qtdEmb);
-	 * 
+	 *
 	 * if (qtdEmb.compareTo(BigDecimal.ZERO) == 0) {
-	 * 
+	 *
 	 * throw new MGEModelException(
 	 * "Existem etiquetas com quantidades iguais a zero. Necessário bipar as caixas individualmente."
 	 * ); } }
-	 * 
+	 *
 	 * }
-	 
+
 
 	public static void exibirMensagem() throws IOException {
 		throw new IOException(

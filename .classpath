@@ -428,5 +428,66 @@
 	<classpathentry kind="lib" path="G:/Meu Drive/Java/Java/LIB/com.google.gdata.jar"/>
 	<classpathentry kind="lib" path="G:/Meu Drive/Java/Java/LIB/jxl-2.6.12.jar"/>
 	<classpathentry kind="lib" path="G:/Meu Drive/Java/Java/LIB/jackson-all-1.9.0.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-codec-1.3.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-codec-1.10.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-codec-1.10-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-codec-1.10-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-codec-1.10-tests.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-codec-1.10-test-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-fileupload-1.3.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-io-2.11.0.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-io-2.11.0-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-io-2.11.0-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-io-2.11.0-tests.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-io-2.11.0-test-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-lang3-3.9.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-lang3-3.9-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-lang3-3.9-tests.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/commons-lang3-3.9-test-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/dwf.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/ganymed-ssh2-261.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/gson-2.1.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/hnztms.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/itextpdf-5.1.0.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/jackson-all-1.9.0.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/jape.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/jape-3.27b151.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/jasperreports-1.1.0.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/javax.ws.rs-api-2.0.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/jbossall-client.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/jboss-j2ee.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/jdom.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/jsch-0.1.42.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/json-20140107.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/jxl-2.6.12.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/jxls-core-1.0.1-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/mgecom-model-4.1b98.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/mgecom-model-4.21b42.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/mgecom-model-client.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/mgecontab-model.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/mgefin-model-4.5b35.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/mge-modelcore.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/mge-modelcore-4.1b53.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/mge-modelcore-4.10b208.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/mge-modulemgr.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/mge-modulemgr-4.9b304.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/mgeprod-model-4.5b35.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/org.apache.commons.httpclient.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/poi-3.9-20121203.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/poi-ooxml-3.9-20121203.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/poi-ooxml-schemas-3.9-20121203.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/print-service-base-2.0.0.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/sancrypt-4.7b117.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/SankhyaW-extensions.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/sannfe.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/sanutil.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/sanutil_SPS.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/sanutil-4.5b35.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/sanws.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/sanws-4.5b35.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/sanws-4.21b42.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/servlet.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/SWService.jar"/>
+	<classpathentry kind="lib" path="C:/Material Java/LIB/xstream-1.4.4.jar"/>
 	<classpathentry kind="output" path="Java/bin"/>
 </classpath>

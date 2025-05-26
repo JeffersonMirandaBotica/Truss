@@ -47,6 +47,7 @@ import br.com.sankhya.ws.ServiceContext;
 public class BotaoGerarRoyalties implements AcaoRotinaJava {
 	private static final SimpleDateFormat	ddMMyyyySkw	= new SimpleDateFormat("dd/MM/yyyy");
 
+	@Override
 	public void doAction(ContextoAcao contexto) throws Exception {
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 
@@ -56,57 +57,61 @@ public class BotaoGerarRoyalties implements AcaoRotinaJava {
 			contexto.mostraErro("Selecione apenas uma nota de cada vez.");
 		}
 
-		contexto.confirmar("Geração Royalties", "Esta opção vai gerar uma nota Royalty/Taxa de publicidade.<br>Deseja continuar?", 1);
+		contexto.confirmar("Geraï¿½ï¿½o Royalties", "Esta opï¿½ï¿½o vai gerar uma nota Royalty/Taxa de publicidade.<br>Deseja continuar?", 1);
 
 		Registro linha = contexto.getLinhas()[0];
-		
+
 		PersistentLocalEntity notaPersistent = dwfEntityFacade.findEntityByPrimaryKey(DynamicEntityNames.CABECALHO_NOTA, linha.getCampo("NUNOTA"));
 		DynamicVO notaOrigemVO = (DynamicVO) notaPersistent.getValueObject();
-		
-		
+
+
 		DynamicVO parceiroVO = notaOrigemVO.asDymamicVO(DynamicEntityNames.PARCEIRO);
 
 		if ("1".equals(notaOrigemVO.asString("AD_STATUSROYAL"))) {
-			contexto.mostraErro("Royaltes já gerados, não será possível continuar.");
+			contexto.mostraErro("Royaltes jï¿½ gerados, nï¿½o serï¿½ possï¿½vel continuar.");
 		}
 
 		if (!"L".equals(notaOrigemVO.asString("STATUSNOTA"))) {
 			contexto.mostraErro("Para gerar os royaltes, a nota deve estar confirmada.");
 		}
-		
+
 		BigDecimal codEmpRoyalties = parceiroVO.asBigDecimal("AD_EMPROYALTIES");
-		if (codEmpRoyalties == null)
-			contexto.mostraErro(String.format("Não configurado a Empresa de Royalties para o parceiro %s-%s.", parceiroVO.asBigDecimal("CODPARC"), parceiroVO.asString("NOMEPARC")));
-		
+		if (codEmpRoyalties == null) {
+			contexto.mostraErro(String.format("Nï¿½o configurado a Empresa de Royalties para o parceiro %s-%s.", parceiroVO.asBigDecimal("CODPARC"), parceiroVO.asString("NOMEPARC")));
+		}
+
 		BigDecimal codEmpTaxa = parceiroVO.asBigDecimal("AD_EMPTAXA");
-		if (codEmpTaxa == null)
-			contexto.mostraErro(String.format("Não configurado a Empresa de Taxa Publicidade para o parceiro %s-%s.", parceiroVO.asBigDecimal("CODPARC"), parceiroVO.asString("NOMEPARC")));
+		if (codEmpTaxa == null) {
+			contexto.mostraErro(String.format("Nï¿½o configurado a Empresa de Taxa Publicidade para o parceiro %s-%s.", parceiroVO.asBigDecimal("CODPARC"), parceiroVO.asString("NOMEPARC")));
+		}
 
 		Collection<DynamicVO> configuracoes = dwfEntityFacade.findByDynamicFinderAsVO(new FinderWrapper("AD_CONFIGROYALTIESSERV", "this.CODEMP = ? AND this.CODEMPDEST IN ( ?, ? )"
 				, new Object[] { notaOrigemVO.asBigDecimal("CODEMP"), codEmpRoyalties, codEmpTaxa }));
 
 		if (configuracoes.size() == 0) {
-			contexto.mostraErro(String.format("Não foi localizada na tela 'Configuração Royalties' a configuração para a empresa %s-%s.", notaOrigemVO.asBigDecimal("CODEMP"), notaOrigemVO.asString("Empresa.RAZAOSOCIAL")));
+			contexto.mostraErro(String.format("Nï¿½o foi localizada na tela 'Configuraï¿½ï¿½o Royalties' a configuraï¿½ï¿½o para a empresa %s-%s.", notaOrigemVO.asBigDecimal("CODEMP"), notaOrigemVO.asString("Empresa.RAZAOSOCIAL")));
 		}
 
 		if (parceiroVO.asBigDecimal("AD_CODTABSERV") == null) {
-			contexto.mostraErro(String.format("Não foi localizada 'Tabela de preço para serviços' na tela 'Parceiros' para o parceiro %s-%s.", parceiroVO.asBigDecimal("CODPARC"), parceiroVO.asString("NOMEPARC")));
+			contexto.mostraErro(String.format("Nï¿½o foi localizada 'Tabela de preï¿½o para serviï¿½os' na tela 'Parceiros' para o parceiro %s-%s.", parceiroVO.asBigDecimal("CODPARC"), parceiroVO.asString("NOMEPARC")));
 		}
 
 		boolean booCalcularRoyaltiesPorParceiro = "S".equals(MGECoreParameter.getParameterAsString("CALCROYPARC"));
-		
+
 		BigDecimal vlrTotal = null;
-		
-		if ( booCalcularRoyaltiesPorParceiro )
-			vlrTotal = NativeSql.getBigDecimal("SUM(VLRTOT - VLRDESC) * ? ", "TGFITE", "USOPROD != 'D' AND NUNOTA = ? ", new Object[] { parceiroVO.asBigDecimal("AD_PERCSERVICOS"), notaOrigemVO.asBigDecimal("NUNOTA") });    
-		else
+
+		if ( booCalcularRoyaltiesPorParceiro ) {
+			vlrTotal = NativeSql.getBigDecimal("SUM(VLRTOT - VLRDESC) * ? ", "TGFITE", "USOPROD != 'D' AND NUNOTA = ? ", new Object[] { parceiroVO.asBigDecimal("AD_PERCSERVICOS"), notaOrigemVO.asBigDecimal("NUNOTA") });
+		} else {
 			vlrTotal = NativeSql.getBigDecimal("SUM(QTDNEG * SNK_PRECO(?, CODPROD))", "TGFITE", "USOPROD != 'D' AND NUNOTA = ? AND NVL(AD_DUZIA, 'N') = 'N'", new Object[] { parceiroVO.asBigDecimal("AD_CODTABSERV"), notaOrigemVO.asBigDecimal("NUNOTA") });
-		
-		if ( vlrTotal == null )
-			contexto.mostraErro("Nota não tem itens que atendam a regra de geração de royalties.");
-			
+		}
+
+		if ( vlrTotal == null ) {
+			contexto.mostraErro("Nota nï¿½o tem itens que atendam a regra de geraï¿½ï¿½o de royalties.");
+		}
+
 		vlrTotal = BigDecimalUtil.getRounded( vlrTotal , 2 );
-		
+
 		CACHelper cacHelper = new CACHelper();
 		JapeSessionContext.putProperty(ListenerParameters.CENTRAIS, Boolean.TRUE);
 		StringBuffer strNotas = new StringBuffer();
@@ -117,7 +122,7 @@ public class BotaoGerarRoyalties implements AcaoRotinaJava {
 		}
 
 		if (totalPerc.doubleValue() != 100) {
-			contexto.mostraErro("Os percentuais configurados na tela 'Configuração Royalties' estão diferente de 100%. Percentual total: " + BigDecimalUtil.toCurrency(totalPerc));
+			contexto.mostraErro("Os percentuais configurados na tela 'Configuraï¿½ï¿½o Royalties' estï¿½o diferente de 100%. Percentual total: " + BigDecimalUtil.toCurrency(totalPerc));
 		}
 
 		for (DynamicVO configVO : configuracoes) {
@@ -157,7 +162,7 @@ public class BotaoGerarRoyalties implements AcaoRotinaJava {
 			}
 
 			if (nuNota == null) {
-				throw new Exception("Não foi possível gerar a nota");
+				throw new Exception("Nï¿½o foi possï¿½vel gerar a nota");
 			}
 
 			dwfEntityFacade.clearSessionCache("CabecalhoNota");
@@ -207,7 +212,7 @@ public class BotaoGerarRoyalties implements AcaoRotinaJava {
 					}
 				}
 			}
-			
+
 			gravarDescontoCredito( parceiroVO.asBigDecimal("CODPARC"), configVO.asBigDecimal("CODEMPDEST"), nuNota  );
 
 			Collection<Exception> erros = dadosBarramento.getErros();
@@ -219,17 +224,17 @@ public class BotaoGerarRoyalties implements AcaoRotinaJava {
 			Collection<LiberacaoSolicitada> liberacoes = dadosBarramento.getLiberacoesSolicitadas();
 
 			if (liberacoes.size() > 0) {
-				throw new Exception("Não foi possível gerar a nota. Solicitação de liberação gerada: " + liberacoes.iterator().next().getDescricao());
+				throw new Exception("Nï¿½o foi possï¿½vel gerar a nota. Solicitaï¿½ï¿½o de liberaï¿½ï¿½o gerada: " + liberacoes.iterator().next().getDescricao());
 			}
 
 			Collection<ClientEvent> clientEvents = dadosBarramento.getClientEvents();
 
 			if (clientEvents.size() > 0) {
-				throw new Exception("Não foi possível gerar a nota. Evento solicitado: " + clientEvents.iterator().next().getEventID());
+				throw new Exception("Nï¿½o foi possï¿½vel gerar a nota. Evento solicitado: " + clientEvents.iterator().next().getEventID());
 			}
 
 			if (sequencia == null) {
-				throw new Exception("Não foi possível gerar a nota. Nenhum item gerado.");
+				throw new Exception("Nï¿½o foi possï¿½vel gerar a nota. Nenhum item gerado.");
 			}
 		}
 
@@ -238,8 +243,8 @@ public class BotaoGerarRoyalties implements AcaoRotinaJava {
 
 		contexto.setMensagemRetorno(String.format("Pedidos %s gerados com sucesso.", strNotas.toString()));
 	}
-	
-	
+
+
 	private void gravarDescontoCredito(BigDecimal codParc, BigDecimal codEmp, BigDecimal nuNota ) throws Exception {
 		JdbcWrapper	jdbc;
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
@@ -248,131 +253,134 @@ public class BotaoGerarRoyalties implements AcaoRotinaJava {
 		try {
 			jdbc.openSession();
 			nativeSql = new NativeSql(jdbc);
-			
+
 			BigDecimal percUsoPermitido = new BigDecimal(MGECoreParameter.getParameterAsInt("PERCPDUSACRED"));
-			if ( BigDecimalUtil.isEmpty(percUsoPermitido))
-				throw new Exception("Parâmetro PERCPDUSACRED não está configurado.");
+			if ( BigDecimalUtil.isEmpty(percUsoPermitido)) {
+				throw new Exception("Parï¿½metro PERCPDUSACRED nï¿½o estï¿½ configurado.");
+			}
 
 			//verificando se tem credito a compensar
 			String strWhere = String.format("CODPARC = %s AND CODEMP = %s", codParc, codEmp );
-			
+
 			BigDecimal vlrCredito = NativeSql.getBigDecimal( "SUM( NVL(VLRCREDITO,0) - NVL(( SELECT SUM(VLRCONSUMO) FROM AD_CREDITOCONSUMO CO WHERE CO.NUCREDITO = CR.NUCREDITO ),0) )"
 															, "AD_CREDITOCLIENTE CR"
 															, strWhere );
-			if ( BigDecimalUtil.isEmpty(vlrCredito) )
+			if ( BigDecimalUtil.isEmpty(vlrCredito) ) {
 				return;
-			
+			}
+
 			//buscando o pedido
 			JapeWrapper pedidoDAO = JapeFactory.dao(DynamicEntityNames.CABECALHO_NOTA);
 			DynamicVO  pedidoVO = pedidoDAO.findByPK(nuNota);
-			if(pedidoVO == null)
+			if(pedidoVO == null) {
 				return;
-			
-			
-			//calculando limite de uso do crédito
+			}
+
+
+			//calculando limite de uso do crï¿½dito
 			BigDecimal limiteCreditoPD = pedidoVO.asBigDecimal("VLRNOTA").multiply(percUsoPermitido).divide(BigDecimalUtil.CEM_VALUE).setScale(2, RoundingMode.HALF_UP);
-			if ( vlrCredito.compareTo(limiteCreditoPD) > 0 )
+			if ( vlrCredito.compareTo(limiteCreditoPD) > 0 ) {
 				vlrCredito = limiteCreditoPD;
-			
-			//atualizando desconto no rodapé do pedido
+			}
+
+			//atualizando desconto no rodapï¿½ do pedido
 			gravarDescontoItens( pedidoVO, vlrCredito );
-			
+
 			NumberFormat formatter = NumberFormat.getCurrencyInstance();
-			
+
 			String strObservacao = String.format( "Valor original do pedido %s\n"
 								 				+ "Valor desconto aplicado  %s\n"
-								 				+ "Valor liquido            %s" 
+								 				+ "Valor liquido            %s"
 								 				,  formatter.format(pedidoVO.asBigDecimal("VLRNOTA"))
 								 				,  formatter.format(vlrCredito)
 								 				,  formatter.format(pedidoVO.asBigDecimal("VLRNOTA").subtract(vlrCredito))
 								 				);
-			
-			
+
+
 			DynamicVO NEWpedidoVO = pedidoDAO.findByPK(nuNota);
 			CentralFinanceiro centralFinanceiro = new CentralFinanceiro();
 			centralFinanceiro.excluiFinanceiro(nuNota);
-			
+
 			ImpostosHelpper	impostosHelper = new ImpostosHelpper();
 			impostosHelper.setForcarRecalculo(true);
 			impostosHelper.forcaRecalculoBaseISS(true);
 			impostosHelper.recalculoICMS(pedidoVO, pedidoVO);
-			
+
 			pedidoDAO.prepareToUpdate(pedidoVO)
 				.set("OBSERVACAO", strObservacao)
 				.set("AD_VLRDESCPGTOAVISTA", vlrCredito)
 				.update();
-			
-			
+
+
 			//amarrando o credito consumido ao pedido
 			gravarConsumoCredito( pedidoVO, vlrCredito );
-			
+
 		} finally {
 			JdbcWrapper.closeSession(jdbc);
 			NativeSql.releaseResources(nativeSql);
 		}
 	}
-	
-	
+
+
 	private void gravarDescontoItens( DynamicVO pedidoVO, BigDecimal vlrCredito )  throws Exception {
-		
+
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 		JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
 		jdbc.openSession();
-		try {	
-				
-				
+		try {
+
+
 				Collection<DynamicVO> itens = dwfEntityFacade.findByDynamicFinderAsVO(new FinderWrapper(DynamicEntityNames.ITEM_NOTA, "this.NUNOTA = ? ", new Object[] { pedidoVO.asBigDecimal("NUNOTA") }));
-				if (itens.isEmpty() )
+				if ( itens.isEmpty() || (pedidoVO.asBigDecimal("VLRNOTA").compareTo(BigDecimal.ZERO) == 0) ) {
 					return;
-				
-				if ( pedidoVO.asBigDecimal("VLRNOTA").compareTo(BigDecimal.ZERO) == 0 )
-					return;
-				
+				}
+
 				BigDecimal indiceDescCredito = vlrCredito.divide(pedidoVO.asBigDecimal("VLRNOTA"), MathContext.DECIMAL128).setScale( 6, RoundingMode.HALF_UP);
-				
+
 				JapeWrapper itemDAO = JapeFactory.dao(DynamicEntityNames.ITEM_NOTA);
-				
+
 				BigDecimal descontoAplicado = BigDecimal.ZERO;
 				int itemNro = 0;
-				
+
 				for ( DynamicVO itemVO : itens ) {
-					
+
 					//calculando valores
 					BigDecimal vlrDesconto = itemVO.asBigDecimal("VLRUNIT").multiply(indiceDescCredito).setScale(2, RoundingMode.HALF_UP);
 					BigDecimal vlrUnit = itemVO.asBigDecimal("VLRUNIT").subtract(vlrDesconto);
 					descontoAplicado = descontoAplicado.add(vlrDesconto);
-					
+
 					itemNro++;
-					//se for o último item, aplica o resto
+					//se for o ï¿½ltimo item, aplica o resto
 					if ( itemNro == itens.size()  ) {
 						BigDecimal resto = vlrCredito.subtract(descontoAplicado);
-						if ( resto.compareTo(BigDecimal.ZERO) > 0 )
+						if ( resto.compareTo(BigDecimal.ZERO) > 0 ) {
 							vlrUnit = vlrUnit.add( resto );
+						}
 					}
-					
+
 					BigDecimal vlrTot  = vlrUnit.multiply(itemVO.asBigDecimal("QTDNEG")).setScale(2, RoundingMode.HALF_UP);
-						
+
 					//atualizando item
 					itemDAO.prepareToUpdate(itemVO)
 						.set("VLRUNIT", vlrUnit )
 						.set("VLRTOT",  vlrTot )
 						.update();
-					
+
 				}
-				
+
 		} catch (Exception e) {
 			throw new Exception("Erro gravando desconto itens.\n\n" + e.getMessage(), e);
 		} finally {
 			JdbcWrapper.closeSession(jdbc);
 		}
 	}
-	
+
 	private void gravarConsumoCredito( DynamicVO pedidoVO, BigDecimal totalConsumido )  throws Exception {
-		
+
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 		JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
 		jdbc.openSession();
-		try {	
+		try {
 			// BUSCANDO CREDITO A CONSUMIR
 			StringBuffer queryCredito =  new StringBuffer(NativeSql.loadSQLFromResource(this.getClass(), "creditoConsumir.sql"));
 			NativeSql nSql = new NativeSql(jdbc);
@@ -384,30 +392,32 @@ public class BotaoGerarRoyalties implements AcaoRotinaJava {
 			BigDecimal vlrConsumo;
 			while ( rs.next() ) {
 
-				//verifica quem é maior, o consumo ou o crédito
-				if ( totalConsumido.compareTo( rs.getBigDecimal("VLRCREDITO") ) < 0 )
-				  vlrConsumo = totalConsumido;
-				else
-				  vlrConsumo = rs.getBigDecimal("VLRCREDITO");
-					  
-					
-				//insere o consumo do crédito
-				insertSQL.executeUpdate( String.format(" INSERT INTO AD_CREDITOCONSUMO (NUCREDITO, NUNOTA, VLRCONSUMO) VALUES ( %s, %s, %s )" 
+				//verifica quem ï¿½ maior, o consumo ou o crï¿½dito
+				if ( totalConsumido.compareTo( rs.getBigDecimal("VLRCREDITO") ) < 0 ) {
+					vlrConsumo = totalConsumido;
+				} else {
+					vlrConsumo = rs.getBigDecimal("VLRCREDITO");
+				}
+
+
+				//insere o consumo do crï¿½dito
+				insertSQL.executeUpdate( String.format(" INSERT INTO AD_CREDITOCONSUMO (NUCREDITO, NUNOTA, VLRCONSUMO) VALUES ( %s, %s, %s )"
 														, rs.getBigDecimal("NUCREDITO")
-														, pedidoVO.asBigDecimal("NUNOTA") 
+														, pedidoVO.asBigDecimal("NUNOTA")
 														, vlrConsumo
 														) );
 				//retira o que foi consumido
 				totalConsumido = totalConsumido.subtract( vlrConsumo );
 
 				//se zerou o consumo, finaliza
-				if ( totalConsumido.compareTo(BigDecimal.ZERO) == 0 )
+				if ( totalConsumido.compareTo(BigDecimal.ZERO) == 0 ) {
 					break;
+				}
 			}
 			rs.close();
-				
+
 		} catch (Exception e) {
-			throw new Exception("Erro gravando consumo do crédito.\n\n" + e.getMessage(), e);
+			throw new Exception("Erro gravando consumo do crï¿½dito.\n\n" + e.getMessage(), e);
 		} finally {
 			JdbcWrapper.closeSession(jdbc);
 		}

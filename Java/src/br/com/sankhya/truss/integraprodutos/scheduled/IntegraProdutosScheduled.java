@@ -10,7 +10,7 @@ public class IntegraProdutosScheduled implements ScheduledAction {
 	@Override
 	public void onTime(ScheduledActionContext ctx) {
 		// TODO Auto-generated method stub
-		
+
 		try {
 			IntegraProdutosHelper.integraProdutos(null);
 		} catch (Exception e) {

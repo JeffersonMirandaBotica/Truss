@@ -6,7 +6,6 @@ import java.math.BigDecimal;
 import java.util.Collection;
 
 import com.sankhya.util.BigDecimalUtil;
-import com.sankhya.util.TimeUtils;
 
 import br.com.sankhya.extensions.eventoprogramavel.EventoProgramavelJava;
 import br.com.sankhya.jape.EntityFacade;
@@ -22,34 +21,41 @@ import br.com.sankhya.modelcore.util.EntityFacadeFactory;
 
 public class ValidaServicoComposicaoPa implements EventoProgramavelJava {
 
+	@Override
 	public void beforeUpdate(PersistenceEvent arg0) throws Exception {
 
 		String acao = "U";
 		validaServicoComposicao(arg0, acao);
 	}
 
+	@Override
 	public void afterDelete(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
 	}
 
+	@Override
 	public void afterInsert(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
 	}
 
+	@Override
 	public void afterUpdate(PersistenceEvent arg0) throws Exception {
 		// TODO Auto-generated method stub
 	}
 
+	@Override
 	public void beforeCommit(TransactionContext arg0) throws Exception {
 		// TODO Auto-generated method stub
 	}
 
+	@Override
 	public void beforeDelete(PersistenceEvent arg0) throws Exception {
 		String acao = "D";
 		validaServicoComposicao(arg0, acao);
 
 	}
 
+	@Override
 	public void beforeInsert(PersistenceEvent arg0) throws Exception {
 		String acao = "I";
 		validaServicoComposicao(arg0, acao);
@@ -58,11 +64,11 @@ public class ValidaServicoComposicaoPa implements EventoProgramavelJava {
 
 	public static void validaServicoComposicao(PersistenceEvent arg0, String acao) throws Exception {
 		System.out.println("validaServicoComposicaoPa.atualizaCampoProduto()");
-		
+
 		if (JapeSession.getPropertyAsBoolean("br.com.mgeprod.isNotValidVersionaProcesso", false) || JapeSession.getPropertyAsBoolean("br.com.sankhya.mgeprod.duplicando.processo.produtivo", false)) {
 			return;
 		}
-		
+
 		DynamicVO newVO = (DynamicVO) arg0.getVo();
 
 		BigDecimal idefx = BigDecimalUtil.getValueOrZero((BigDecimal) newVO.getProperty("IDEFX"));
@@ -74,8 +80,8 @@ public class ValidaServicoComposicaoPa implements EventoProgramavelJava {
 
 		JapeWrapper tprprcDAO = JapeFactory.dao(DynamicEntityNames.PROCESSO_PRODUTIVO);
 		DynamicVO tprprcVO = tprprcDAO.findOne(" IDPROC = " + tpratvVO.getProperty("IDPROC"));
-		
-		
+
+
 		BigDecimal codPlp = tprprcVO.asBigDecimal("CODPLP");
 		BigDecimal plantaPadrao = new BigDecimal(3);
 

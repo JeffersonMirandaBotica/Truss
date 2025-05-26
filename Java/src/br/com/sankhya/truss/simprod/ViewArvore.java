@@ -1,14 +1,14 @@
 package br.com.sankhya.truss.simprod;
 
 public class ViewArvore {
-	
-	
+
+
 	public static String getQueryArvoreProduto() {
 		return "SELECT V.* \r\n"
 				+ "FROM \r\n"
 				+ "(\r\n"
 				+ "\r\n"
-				+ "-- NÍVEL 1\r\n"
+				+ "-- Nï¿½VEL 1\r\n"
 				+ "SELECT DISTINCT\r\n"
 				+ "LMP.CODPRODPA AS CODPRODPRINC,\r\n"
 				+ "LMP.CODPRODPA, \r\n"
@@ -29,7 +29,7 @@ public class ViewArvore {
 				+ "\r\n"
 				+ "UNION ALL\r\n"
 				+ "\r\n"
-				+ "-- NÍVEL 2\r\n"
+				+ "-- Nï¿½VEL 2\r\n"
 				+ "SELECT DISTINCT\r\n"
 				+ "\r\n"
 				+ "LMP.CODPRODPA AS CODPRODPRINC, \r\n"
@@ -56,7 +56,7 @@ public class ViewArvore {
 				+ "\r\n"
 				+ "UNION ALL\r\n"
 				+ "\r\n"
-				+ "-- NÍVEL 3\r\n"
+				+ "-- Nï¿½VEL 3\r\n"
 				+ "SELECT DISTINCT\r\n"
 				+ "\r\n"
 				+ "LMP.CODPRODPA AS CODPRODPRINC, \r\n"
@@ -87,7 +87,7 @@ public class ViewArvore {
 				+ "\r\n"
 				+ "UNION ALL\r\n"
 				+ "\r\n"
-				+ "-- NÍVEL 4\r\n"
+				+ "-- Nï¿½VEL 4\r\n"
 				+ "SELECT DISTINCT\r\n"
 				+ "\r\n"
 				+ "LMP.CODPRODPA AS CODPRODPRINC, \r\n"
@@ -123,7 +123,7 @@ public class ViewArvore {
 				+ "\r\n"
 				+ "UNION ALL \r\n"
 				+ "\r\n"
-				+ "-- NÍVEL 5\r\n"
+				+ "-- Nï¿½VEL 5\r\n"
 				+ "SELECT DISTINCT\r\n"
 				+ "\r\n"
 				+ "LMP.CODPRODPA AS CODPRODPRINC, \r\n"
@@ -164,7 +164,7 @@ public class ViewArvore {
 				+ "\r\n"
 				+ "UNION ALL\r\n"
 				+ "\r\n"
-				+ "-- NÍVEL 6\r\n"
+				+ "-- Nï¿½VEL 6\r\n"
 				+ "SELECT DISTINCT\r\n"
 				+ "\r\n"
 				+ "LMP.CODPRODPA AS CODPRODPRINC, \r\n"

@@ -8,7 +8,7 @@ public class aplicaDesconto2 implements AcaoRotinaJava {
 
 	@Override
 	public void doAction(ContextoAcao ctx) throws Exception {
-		
+
 		ctx.mostraErro("ENTROU AQUI");
 	}
 

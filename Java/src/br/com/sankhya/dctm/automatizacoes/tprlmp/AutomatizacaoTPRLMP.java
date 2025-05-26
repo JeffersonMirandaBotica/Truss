@@ -58,26 +58,26 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 	public void beforeUpdate(PersistenceEvent event) throws Exception {
 		valida(event,"U");
 	}
-	
+
 	private void valida(PersistenceEvent event, String quando) throws MGEModelException {
 		System.out.println("Iniciando AutomatizacaoTPRLMP");
-		
+
 		//validaPorcentagem(event);
 		//validaPesoLiquido(event);
-		
+
 		DynamicVO registroTPRLMP = (DynamicVO) event.getVo();
-		
+
 		BigDecimal codProdPa = registroTPRLMP.asBigDecimal("CODPRODPA");
 		BigDecimal codProdMp = registroTPRLMP.asBigDecimal("CODPRODMP");
 		BigDecimal qtdMisturaNew = BigDecimal.ZERO;
 		BigDecimal qtdMisturaOld = BigDecimal.ZERO;
 		BigDecimal codProdMpOld = BigDecimal.ZERO;
-		
+
 		BigDecimal usuarioLogado = ((AuthenticationInfo)ServiceContext.getCurrent().getAutentication()).getUserID();
-		
+
 		registroTPRLMP.setProperty("AD_USUARIOINCLUSAO", usuarioLogado);
 		registroTPRLMP.setProperty("AD_DATAINCLUSAO", new Timestamp(System.currentTimeMillis()));
-		
+
 		String validaRegulatorio = getValidaRegulatorio(event);
 		if(validaRegulatorio.equals( "S")) {
 			System.out.println("Entrou no if do valida regulatorio");
@@ -160,16 +160,16 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 					    return;
 					}
 				}
-			
+
 				if(verificaGrupo(codProdMp)) {
 					return;
 				}
-				
+
 				BigDecimal seqLiberacao = getSeqLiberacao(codProdPa);
 				String descrProdPA = getDescrProd(codProdPa);
 				Map propriedades = JapeSession.getProperties();
-				
-				
+
+
 				if(quando == "I") {
 					Object propriedade = propriedades.get("br.com.sankhya.mgeprod.duplicando.processo.produtivo");
 					if(propriedade != null) {
@@ -179,15 +179,15 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 						}
 					}
 				}
-				
+
 				Object propriedade = propriedades.get("br.com.mgeprod.isNotValidVersionaProcesso");
 				System.out.println("br.com.mgeprod.isNotValidVersionaProcesso : " + propriedade);
-				
+
 				boolean propriedadeBoolean = false;
 				if(propriedade != null) {
 					propriedadeBoolean = (boolean)propriedade;
 				}
-				
+
 				if (quando == "I" || (quando == "D" && !propriedadeBoolean) || (quando == "U"
 						&& (qtdMisturaNew.compareTo(qtdMisturaOld) != 0 || codProdMp.compareTo(codProdMpOld) != 0))) {
 					insereTSILIB(codProdPa, usuarioLogado, codProdMpOld, codProdMp, seqLiberacao, descrProdPA);
@@ -195,7 +195,7 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 				}
 		}
 	}
-	
+
 	private void updateTPELPA(BigDecimal codProdPa) throws MGEModelException {
 		JapeWrapper dao = JapeFactory.dao(DynamicEntityNames.PRODUTO_ACABADO);
 		try {
@@ -207,9 +207,9 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 			MGEModelException.throwMe(e);
 		}
 	}
-	
+
 	private void insereTSILIB(BigDecimal codProdPa, BigDecimal usuarioLogado, BigDecimal codProdMpOld, BigDecimal codProdMp, BigDecimal seqLiberacao, String descrProdPA) throws MGEModelException {
-		JdbcWrapper jdbcWrapper = JapeFactory.getEntityFacade().getJdbcWrapper();;
+		JdbcWrapper jdbcWrapper = JapeFactory.getEntityFacade().getJdbcWrapper();
 		NativeSql updtab = new NativeSql(jdbcWrapper);
         updtab.setNamedParameter("CODPRODPA",codProdPa);
         updtab.setNamedParameter("USUARIOLOGADO",usuarioLogado);
@@ -229,7 +229,7 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 
 	private String getDescrProd(BigDecimal codProdPa) throws MGEModelException {
 		String descrProd = "";
-		
+
 		JdbcWrapper jdbc = null;
 		NativeSql sql = null;
 		ResultSet rset = null;
@@ -263,13 +263,13 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 			JdbcWrapper.closeSession(jdbc);
 			JapeSession.close(hnd);
 		}
-		
+
 		return descrProd;
 	}
 
 	private BigDecimal getSeqLiberacao(BigDecimal codProdPa) throws MGEModelException {
 		BigDecimal seqLiberacao = BigDecimal.ZERO;
-		
+
 		JdbcWrapper jdbc = null;
 		NativeSql sql = null;
 		ResultSet rset = null;
@@ -305,7 +305,7 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 			JdbcWrapper.closeSession(jdbc);
 			JapeSession.close(hnd);
 		}
-		
+
 		return seqLiberacao;
 	}
 
@@ -347,7 +347,7 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 			JdbcWrapper.closeSession(jdbc);
 			JapeSession.close(hnd);
 		}
-		
+
 		if(usoProd != null && grupoProd != null) {
 			if(usoProd == "P" && grupoProd.compareTo(new BigDecimal("990102000")) == 0) {
 				return true;
@@ -359,9 +359,9 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 	private String getValidaRegulatorio(PersistenceEvent event) throws MGEModelException {
 		DynamicVO registroTPRLMP = (DynamicVO) event.getVo();
 		BigDecimal codprodmp = registroTPRLMP.asBigDecimal("CODPRODMP");
-		
+
 		String validaRegulatorio = "";
-		
+
 		JdbcWrapper jdbc = null;
 		NativeSql sql = null;
 		ResultSet rset = null;
@@ -396,7 +396,7 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 			JdbcWrapper.closeSession(jdbc);
 			JapeSession.close(hnd);
 		}
-		
+
 		return validaRegulatorio;
 	}
 
@@ -405,7 +405,7 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 		BigDecimal codprodpa = registroTPRLMP.asBigDecimal("CODPRODPA");
 		BigDecimal pesoliq = BigDecimal.ZERO;
 		BigDecimal ad_percmp = registroTPRLMP.asBigDecimal("AD_PERCMP");
-		
+
 		JdbcWrapper jdbc = null;
 		NativeSql sql = null;
 		ResultSet rset = null;
@@ -443,7 +443,7 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 			JdbcWrapper.closeSession(jdbc);
 			JapeSession.close(hnd);
 		}
-		
+
 		if(pesoliq.floatValue() > 0.0 && ad_percmp != null) {
 			registroTPRLMP.setProperty("QTDMISTURA", new BigDecimal((ad_percmp.floatValue() / 100) * pesoliq.floatValue()));
 		}
@@ -455,9 +455,9 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 		BigDecimal seqmp = registroTPRLMP.asBigDecimal("SEQMP");
 		BigDecimal codprodpa = registroTPRLMP.asBigDecimal("CODPRODPA");
 		BigDecimal ad_percmp = registroTPRLMP.asBigDecimalOrZero("AD_PERCMP");
-		
+
 		BigDecimal percMP = BigDecimal.ZERO;
-		
+
 		JdbcWrapper jdbc = null;
 		NativeSql sql = null;
 		ResultSet rset = null;
@@ -499,7 +499,7 @@ public class AutomatizacaoTPRLMP implements EventoProgramavelJava{
 			JdbcWrapper.closeSession(jdbc);
 			JapeSession.close(hnd);
 		}
-		
+
 		if(ad_percmp != null) {
 			if(ad_percmp.floatValue() == 0.0) {
 				throw new MGEModelException("O % desejado deve ser maior do que zero.");

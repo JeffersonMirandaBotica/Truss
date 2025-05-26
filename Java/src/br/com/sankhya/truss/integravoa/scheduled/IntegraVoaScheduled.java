@@ -10,7 +10,7 @@ public class IntegraVoaScheduled implements ScheduledAction {
 	@Override
 	public void onTime(ScheduledActionContext ctx) {
 		// TODO Auto-generated method stub
-		
+
 		try {
 			IntegraVoaHelper.integraVoa(null);
 		} catch (Exception e) {
