@@ -3,6 +3,7 @@ package br.com.sankhya.dctm.envBolAuto;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -13,9 +14,6 @@ import org.cuckoo.core.ScheduledActionContext;
 import com.sankhya.util.BigDecimalUtil;
 import com.sankhya.util.TimeUtils;
 
-import br.com.sankhya.extensions.actionbutton.ContextoAcao;
-import br.com.sankhya.extensions.actionbutton.QueryExecutor;
-import br.com.sankhya.extensions.actionbutton.Registro;
 import br.com.sankhya.jape.EntityFacade;
 import br.com.sankhya.jape.bmp.PersistentLocalEntity;
 import br.com.sankhya.jape.core.JapeSession;
@@ -28,10 +26,12 @@ import br.com.sankhya.jape.vo.EntityVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.modelcore.auth.AuthenticationInfo;
+import br.com.sankhya.modelcore.comercial.BoletoHelper;
 import br.com.sankhya.modelcore.comercial.ImpressaoNotaHelpper;
 import br.com.sankhya.modelcore.util.ArquivoModeloUtils;
 import br.com.sankhya.modelcore.util.DynamicEntityNames;
 import br.com.sankhya.modelcore.util.EntityFacadeFactory;
+import br.com.sankhya.modelcore.util.MGECoreParameter;
 import br.com.sankhya.modelcore.util.Report;
 import br.com.sankhya.modelcore.util.ReportManager;
 import br.com.sankhya.util.ConcatenatePDF;
@@ -43,6 +43,7 @@ public class EnviaBoletoAuto implements ScheduledAction {
 
 	ConcatenatePDF arquivos = new ConcatenatePDF();
 	Boolean erro = false;
+	String nomeAnexo = "";
 
 	BigDecimal codAnexo = null;
 
@@ -51,6 +52,7 @@ public class EnviaBoletoAuto implements ScheduledAction {
 		try {
 			System.out.println("Inicio EnviaBoletoAuto ");
 			BuscaFinanceiros();
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -64,18 +66,27 @@ public class EnviaBoletoAuto implements ScheduledAction {
 		System.out.println("Entra BuscaFinanceiros");
 
 		try {
+
+			int codModMail = MGECoreParameter.getParameterAsInt("IDMODMAILBOLAUT");
+			BigDecimal codModMailBig = new BigDecimal(codModMail);
+
 			nativeSql = new NativeSql(jdbc);
-			nativeSql.appendSql(" SELECT FIN.NUFIN, FIN.NUNOTA ");
+			nativeSql.appendSql(" SELECT FIN.NUFIN, FIN.NUNOTA, FIN.CODPARC ");
 			nativeSql.appendSql(" FROM TGFFIN FIN ");
 			nativeSql.appendSql(" WHERE NVL(FIN.AD_BOLETOREGISTRADO,'N') = 'S' ");
 			nativeSql.appendSql(" AND NVL(FIN.AD_BOLETOIMPRESSO,'N') = 'N' ");
 			nativeSql.appendSql(" AND FIN.ORIGEM = 'E' ");
+			nativeSql.appendSql(" AND FIN.NUFIN = 644531 ");
 
 			ResultSet resultado = nativeSql.executeQuery();
 			while (resultado.next()) {
 
 				BigDecimal nufin = resultado.getBigDecimal("NUFIN");
-				enviaBoleto(nufin);
+				BigDecimal codParc = resultado.getBigDecimal("CODPARC");
+				BigDecimal nuNota = resultado.getBigDecimal("NUNOTA");
+
+				System.out.println("nufin: " + nufin);
+				enviaBoleto(nufin, nuNota, codParc, codModMailBig);
 
 			}
 		} catch (Exception e) {
@@ -83,60 +94,58 @@ public class EnviaBoletoAuto implements ScheduledAction {
 		}
 	}
 
-	private void enviaBoleto(BigDecimal nufin) {
+	private void enviaBoleto(BigDecimal nufin, BigDecimal nuNota, BigDecimal codParc, BigDecimal codModMail)
+			throws Exception {
+
+		System.out.println("Entrou enviaBoleto");
 
 		@SuppressWarnings("unused")
 		SessionHandle hnd = null;
 		String email = "tales.alves@sankhya.com.br";
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 
-		String corpoemail = "";
+		PersistentLocalEntity persistent = dwfEntityFacade.findEntityByPrimaryKey(DynamicEntityNames.PARCEIRO, codParc);
+		DynamicVO parceiroVO = (DynamicVO) persistent.getValueObject();
+
+		String emailParc = parceiroVO.asString("EMAILNFE");
+		System.out.println("emailParc: " + emailParc);
+
+		String[] listaEmails = emailParc.split(";");
+
+		for (String emailSeparado : listaEmails) {
+			System.out.println(emailSeparado.trim());
+		}
+
+		final PersistentLocalEntity persistentModBol = dwfEntityFacade.findEntityByPrimaryKey("ModeloEmail",
+				codModMail);
+		final DynamicVO modBolVO = (DynamicVO) persistentModBol.getValueObject();
+
+		String assunto = modBolVO.asString("ASSUNTO");
+		String corpoemail = modBolVO.asString("CONTEUDO");
+		BigDecimal codSMTP = modBolVO.asBigDecimal("CODSMTP");
+
+		System.out.println("assunto: " + assunto);
+		System.out.println("corpoemail: " + corpoemail);
+		System.out.println("codSMTP: " + codSMTP);
+
 		char[] mensagem = corpoemail.toCharArray();
 
-		String assunto = "";
+		EnviaEmailAutoHelper helper = new EnviaEmailAutoHelper();
 
 		try {
 
-			hnd = JapeSession.open();
-			EntityFacade dwfFacade = EntityFacadeFactory.getDWFFacade();
-
-			EntityVO entityVO = dwfFacade.getDefaultValueObjectInstance("MSDFilaMensagem");
-
-			DynamicVO dynamicVO = (DynamicVO) entityVO;
-			dynamicVO.setProperty("ASSUNTO", assunto);
-			dynamicVO.setProperty("DTENTRADA", new Timestamp(System.currentTimeMillis()));
-			dynamicVO.setProperty("STATUS", "Pendente");
-			dynamicVO.setProperty("EMAIL", email);
-			dynamicVO.setProperty("TENTENVIO", new BigDecimal(1));
-			dynamicVO.setProperty("MENSAGEM", mensagem);
-			dynamicVO.setProperty("TIPOENVIO", "E");
-			dynamicVO.setProperty("MAXTENTENVIO", new BigDecimal(3));
-			dynamicVO.setProperty("CODCON", new BigDecimal(0));
-
-			PersistentLocalEntity createEntity = dwfFacade.createEntity("MSDFilaMensagem", entityVO);
-			DynamicVO save = (DynamicVO) createEntity.getValueObject();
-
-			BigDecimal codFila = save.asBigDecimal("CODFILA");
+			BigDecimal codFila = helper.insereEmail(mensagem, assunto, email, codSMTP);
 
 			System.out.println("nro fila: " + codFila);
 
-			arquivos.setNumeration(false);
-			byte[] arquivo = null;// arquivos.run().toByteArray();
+			byte[] arquivo = impressaoNota(nuNota);
 
-			SessionHandle anexo = null;
 			try {
-				anexo = JapeSession.open();
-				EntityFacade dwfFacade2 = EntityFacadeFactory.getDWFFacade();
-				EntityVO entityVO2 = dwfFacade2.getDefaultValueObjectInstance("AnexoMensagem");
-				DynamicVO dynamicVO2 = (DynamicVO) entityVO2;
-				dynamicVO2.setProperty("NOMEARQUIVO", "Viagem ");
-				dynamicVO2.setProperty("TIPO", "application/pdf");
-				dynamicVO2.setProperty("ANEXO", arquivo);
+				helper.insereAnexo(nomeAnexo, arquivo, codFila);
 
-				PersistentLocalEntity createEntity2 = dwfFacade2.createEntity("AnexoMensagem", entityVO2);
-				DynamicVO save2 = (DynamicVO) createEntity2.getValueObject();
+				byte[] arquivoBoleto = impressaoNota(nuNota);
 
-				codAnexo = save2.asBigDecimal("NUANEXO");
+				helper.insereAnexo("Boleto", arquivoBoleto, codFila);
 
 				System.out.println("nro ANEXO: " + codAnexo);
 
@@ -144,14 +153,8 @@ public class EnviaBoletoAuto implements ScheduledAction {
 				erro = true;
 				e.printStackTrace();
 			} finally {
-				JapeSession.close(anexo);
+				// JapeSession.close(anexo);
 			}
-
-			JdbcWrapper jdbc = JapeFactory.getEntityFacade().getJdbcWrapper();
-			NativeSql nativeSql = new NativeSql(jdbc);
-
-			String sqlAnexo = " INSERT INTO TMDAXM (CODFILA, NUANEXO) VALUES " + "(" + codFila + " , " + codAnexo + ")";
-			nativeSql.executeUpdate(sqlAnexo);
 
 		} catch (Exception e) {
 			erro = true;
@@ -161,14 +164,14 @@ public class EnviaBoletoAuto implements ScheduledAction {
 		if (!erro) {
 
 			try {
-					
-				PersistentLocalEntity persistent = dwfEntityFacade.findEntityByPrimaryKey(DynamicEntityNames.FINANCEIRO, nufin);
-				DynamicVO financeiroVO = (DynamicVO) persistent.getValueObject();
 
-					financeiroVO.setProperty("AD_BOLETOIMPRESSO ", "S");
-					financeiroVO.setProperty("AD_DHENVBOLETO ",new Timestamp(System.currentTimeMillis()) );
-					persistent.setValueObject((EntityVO) financeiroVO);
-				
+				PersistentLocalEntity persistentFin = dwfEntityFacade
+						.findEntityByPrimaryKey(DynamicEntityNames.FINANCEIRO, nufin);
+				DynamicVO financeiroVO = (DynamicVO) persistentFin.getValueObject();
+
+				financeiroVO.setProperty("AD_BOLETOIMPRESSO", "S");
+				financeiroVO.setProperty("AD_DTBOLETOIMPRESSO", new Timestamp(System.currentTimeMillis()));
+				persistentFin.setValueObject((EntityVO) financeiroVO);
 
 			} catch (Exception e) {
 				erro = true;
@@ -225,19 +228,22 @@ public class EnviaBoletoAuto implements ScheduledAction {
 			e.printStackTrace();
 		}
 	}
-	
+
 	@SuppressWarnings("static-access")
-	private void impressaoNota(ContextoAcao ctx, Registro line) {
+	private byte[] impressaoNota(BigDecimal nuNota) {
+
+		System.out.println("Entrou impressaoNota");
+
+		nomeAnexo = "";
 
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 
 		JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
 
+		byte[] arqFatura = null;
 		try {
 
 			jdbc.openSession();
-
-			BigDecimal nuNota = (BigDecimal) line.getCampo("NUNOTA");
 
 			System.out.println("nuNota: " + nuNota);
 
@@ -245,65 +251,62 @@ public class EnviaBoletoAuto implements ScheduledAction {
 			Map<String, Object> parameters = new HashMap<>();
 			Report modeloImpressao = null;
 
-			byte[] arqFatura = null;
+			NativeSql nativeSql = null;
 
-			// busca os NUNOTA
-			QueryExecutor query = ctx.getQuery();
-
-			StringBuffer sqlQuery = new StringBuffer("");
-			sqlQuery.append(" SELECT CAB.NUNOTA, CAB.NUMNOTA, TP.CODMODDOC, ");
-			sqlQuery.append("	ISNULL(CAB.STATUSNFSE,'N') AS STATUSNFSE, ");
-			sqlQuery.append("	(SELECT NURFE FROM TGFMON WHERE CODMODNF = ISNULL(NUM.MODNOTAFIS,TP.CODMODNF)) NURFE ");
-			sqlQuery.append(" FROM TGFCAB CAB ");
-			sqlQuery.append(" JOIN TGFTOP TP ON CAB.CODTIPOPER = TP.CODTIPOPER AND CAB.DHTIPOPER = TP.DHALTER ");
-			sqlQuery.append(" LEFT JOIN TGFNUM NUM ");
-			sqlQuery.append(
+			nativeSql = new NativeSql(jdbc);
+			nativeSql.appendSql(" SELECT CAB.NUNOTA, CAB.NUMNOTA, TP.CODMODDOC, ");
+			nativeSql.appendSql(" NVL(CAB.STATUSNFSE,'N') AS STATUSNFSE, ");
+			nativeSql
+					.appendSql(" (SELECT NURFE FROM TGFMON WHERE CODMODNF = NVL(NUM.MODNOTAFIS,TP.CODMODNFSE)) NURFE ");
+			nativeSql.appendSql(" FROM TGFCAB CAB ");
+			nativeSql.appendSql(" JOIN TGFTOP TP ON CAB.CODTIPOPER = TP.CODTIPOPER AND CAB.DHTIPOPER = TP.DHALTER ");
+			nativeSql.appendSql(" LEFT JOIN TGFNUM NUM ");
+			nativeSql.appendSql(
 					" ON ARQUIVO = 'VENDA' AND CAB.SERIENOTA = NUM.SERIE AND CAB.CODEMP = NUM.CODEMP AND TP.CODMODDOC = NUM.CODMODDOC ");
-			sqlQuery.append(" WHERE CAB.NUNOTA = " + nuNota + " ");
+			nativeSql.appendSql(" WHERE CAB.NUNOTA = " + nuNota);
 
-			query.nativeSelect(sqlQuery.toString());
+			ResultSet resultado = nativeSql.executeQuery();
+			while (resultado.next()) {
 
-			while (query.next()) {
+				String statusNFSe = resultado.getString("STATUSNFSE");
 
-				String statusNFSe = query.getString("STATUSNFSE");
-
-				String codModDoc = query.getString("CODMODDOC");
+				String codModDoc = resultado.getString("CODMODDOC");
+				BigDecimal numNota = null;
 
 				System.out.println("nuNota: " + nuNota);
 				System.out.println("statusNFSe: " + statusNFSe);
 				System.out.println("codModDoc: " + codModDoc);
 
-			
-					JapeWrapper notaDAO = JapeFactory.dao("CabecalhoNota");
-					Collection<DynamicVO> notasVO = notaDAO.find("NUNOTA = ?", nuNota);
-					for (@SuppressWarnings("unused")
-					DynamicVO notaVO : notasVO) {
+				JapeWrapper notaDAO = JapeFactory.dao("CabecalhoNota");
+				Collection<DynamicVO> notasVO = notaDAO.find("NUNOTA = ?", nuNota);
+				for (@SuppressWarnings("unused")
+				DynamicVO notaVO : notasVO) {
 
-						BigDecimal numeroNota = (BigDecimal) notaVO.getProperty("NUNOTA");
+					BigDecimal numeroNota = (BigDecimal) notaVO.getProperty("NUNOTA");
 
-						// inicio gera��o do relat�rio fatura
-						nroRelatorio = query.getBigDecimal("NURFE");
-						parameters = new HashMap<>();
+					// inicio gera��o do relat�rio fatura
+					nroRelatorio = resultado.getBigDecimal("NURFE");
+					parameters = new HashMap<>();
 
-						@SuppressWarnings("unused")
-						ImpressaoNotaHelpper impressaoNotaHelpper = new ImpressaoNotaHelpper(); // getImagemQRCodeDanfeCTe;
+					@SuppressWarnings("unused")
+					ImpressaoNotaHelpper impressaoNotaHelpper = new ImpressaoNotaHelpper();
 
-						parameters.put("NUNOTA", numeroNota);
-						parameters.put("PDIR_MODELO", ArquivoModeloUtils.getDiretorioModelos());
+					parameters.put("NUNOTA", numeroNota);
+					parameters.put("PDIR_MODELO", ArquivoModeloUtils.getDiretorioModelos());
 
-						modeloImpressao = ReportManager.getInstance().getReport(nroRelatorio, dwfEntityFacade);
+					modeloImpressao = ReportManager.getInstance().getReport(nroRelatorio, dwfEntityFacade);
 
-						JasperPrint jasperPrint = null;
+					JasperPrint jasperPrint = null;
 
-						jasperPrint = modeloImpressao.buildJasperPrint(parameters, jdbc.getConnection());
+					jasperPrint = modeloImpressao.buildJasperPrint(parameters, jdbc.getConnection());
 
-						arqFatura = JasperExportManager.exportReportToPdf(jasperPrint);
+					arqFatura = JasperExportManager.exportReportToPdf(jasperPrint);
 
-						arquivos.addPdfFile(arqFatura);
+					arquivos.addPdfFile(arqFatura);
 
-						arqFatura = null;
+					nomeAnexo = "NFSe_" + numNota;
 
-					
+					arqFatura = null;
 				}
 
 			}
@@ -316,7 +319,84 @@ public class EnviaBoletoAuto implements ScheduledAction {
 		} finally {
 			jdbc.closeSession();
 		}
+		return arqFatura;
 	}
 
+	public byte[] buscarBoleto(BigDecimal nunota) throws Exception {
+
+		System.out.println("Entrou buscarBoleto");
+
+		byte[] boleto = null;
+		ConcatenatePDF pdfList = new ConcatenatePDF();
+		pdfList.setNumeration(false);
+
+		// BOLETO
+
+		JdbcWrapper JDBC = JapeFactory.getEntityFacade().getJdbcWrapper();
+		NativeSql nativeSql = new NativeSql(JDBC);
+
+		StringBuilder sql = new StringBuilder();
+
+		sql.append(" SELECT FIN.NUFIN, FIN.CODCTABCOINT, FIN.CODBCO, FIN.CODEMP ");
+		sql.append("   FROM TGFFIN FIN, TGFTIT TIT ");
+		sql.append("  WHERE FIN.CODTIPTIT = TIT.CODTIPTIT ");
+		sql.append("    AND NVL(TIT.PROIBIMPBOL,'N') = 'N' ");
+		sql.append("    AND FIN.NUNOTA = " + nunota);
+		sql.append("    UNION ALL ");
+		sql.append(" SELECT FIN.NUFIN, FIN.CODCTABCOINT, FIN.CODBCO, FIN.CODEMP ");
+		sql.append("   FROM TGFFIN FIN, TGFTIT TIT ");
+		sql.append("  WHERE FIN.CODTIPTIT = TIT.CODTIPTIT ");
+		sql.append("    AND NVL(TIT.PROIBIMPBOL,'N') = 'N' ");
+		sql.append("    AND FIN.NUNOTA IN (SELECT NUNOTA FROM TGFVAR WHERE NUNOTAORIG = " + nunota + ")");
+
+		ResultSet rs;
+		try {
+			rs = nativeSql.executeQuery(sql.toString());
+
+			while (rs.next()) {
+
+				BigDecimal nuFin = rs.getBigDecimal("NUFIN");
+
+				// boletos
+
+				BoletoHelper.ConfiguracaoBoleto conf = new BoletoHelper.ConfiguracaoBoleto();
+				conf.setGerarNumeroBoleto(false);
+				conf.setAgrupamentoBoleto(5);
+				conf.setTipoSaidaBoleto(1);
+				conf.setFinanceirosSelecionados(Arrays.asList(new BigDecimal[] { nuFin }));
+				conf.setReimprimirBoleta(true);
+				BoletoHelper helper = new BoletoHelper();
+				helper.gerarBoleto(conf, false, false);
+
+				BoletoHelper boletoHelper = new BoletoHelper();
+				boletoHelper.gerarBoleto(conf, false, false);
+
+				byte[] boletoLinha = boletoHelper.getBoletosPDF();
+
+				System.out.println("BOLETO NUFIN:" + nuFin);
+
+				pdfList.addPdfFile(boletoLinha);
+
+			}
+
+		} catch (Exception e2) {
+
+			e2.printStackTrace();
+			System.out.println("Fim ---- [ERRO - BOLETO] - erro boleto:" + e2.getMessage());
+		}
+
+		try {
+			boleto = pdfList.run().toByteArray();
+
+		} catch (Exception e3) {
+
+			e3.printStackTrace();
+			System.out.println("Fim ---- [ERRO - BOLETO] - NÃO GEROU BOLETO:" + e3.getMessage());
+
+		}
+
+		return boleto;
+
+	}
 
 }
