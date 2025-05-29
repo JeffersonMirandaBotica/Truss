@@ -63,7 +63,7 @@ public class EnviaBoletoAuto implements ScheduledAction {
 		JdbcWrapper jdbc = entityFacade.getJdbcWrapper();
 		NativeSql nativeSql = null;
 
-		System.out.println("Entra BuscaFinanceiros");
+		erro = false;
 
 		try {
 
@@ -98,6 +98,8 @@ public class EnviaBoletoAuto implements ScheduledAction {
 			throws Exception {
 
 		System.out.println("Entrou enviaBoleto");
+
+		BigDecimal codFila = null;
 
 		@SuppressWarnings("unused")
 		SessionHandle hnd = null;
@@ -134,23 +136,25 @@ public class EnviaBoletoAuto implements ScheduledAction {
 
 		try {
 
-			BigDecimal codFila = helper.insereEmail(mensagem, assunto, email, codSMTP);
+			codFila = helper.insereEmail(mensagem, assunto, email, codSMTP);
 
 			System.out.println("nro fila: " + codFila);
 
-			byte[] arquivo = impressaoNota(nuNota);
-
 			try {
+
+				byte[] arquivo = impressaoNota(nuNota);
+
 				helper.insereAnexo(nomeAnexo, arquivo, codFila);
 
-				byte[] arquivoBoleto = impressaoNota(nuNota);
+				//byte[] arquivoBoleto = buscarBoleto(nuNota);
 
-				helper.insereAnexo("Boleto", arquivoBoleto, codFila);
+				//helper.insereAnexo("Boleto", arquivoBoleto, codFila);
 
 				System.out.println("nro ANEXO: " + codAnexo);
 
 			} catch (Exception e) {
 				erro = true;
+				insereLogTransf(e.getMessage(), nufin, nuNota);
 				e.printStackTrace();
 			} finally {
 				// JapeSession.close(anexo);
@@ -158,7 +162,17 @@ public class EnviaBoletoAuto implements ScheduledAction {
 
 		} catch (Exception e) {
 			erro = true;
+			insereLogTransf(e.getMessage(), nufin, nuNota);
 			e.printStackTrace();
+		}
+
+		if (erro && codFila.intValue() > 0) {
+			try {
+				helper.deletaFila(codFila);
+			} catch (Exception e) {
+				insereLogTransf(e.getMessage(), nufin, nuNota);
+				e.printStackTrace();
+			}
 		}
 
 		if (!erro) {
@@ -174,7 +188,7 @@ public class EnviaBoletoAuto implements ScheduledAction {
 				persistentFin.setValueObject((EntityVO) financeiroVO);
 
 			} catch (Exception e) {
-				erro = true;
+				insereLogTransf(e.getMessage(), nufin, nuNota);
 				e.printStackTrace();
 			}
 		}
@@ -209,16 +223,21 @@ public class EnviaBoletoAuto implements ScheduledAction {
 		JapeSessionContext.putProperty("authInfo", authInfo);
 	}
 
-	private void insereLogTransf(String erro, BigDecimal nuNotaOrig, BigDecimal sequenciaOrig, BigDecimal nuNotaGerado,
-			BigDecimal sequenciaGerada) {
+	private void insereLogTransf(String erro, BigDecimal nufin, BigDecimal nuNota) {
+		
 		try {
 			SessionHandle hnd = null;
 			hnd = JapeSession.open();
-			JapeWrapper impDAO = JapeFactory.dao("AD_LOGGERPEDENTFUT");
+			JapeWrapper impDAO = JapeFactory.dao("AD_LOGENVBOLAUT");
 			try {
-				DynamicVO dynamicVO = impDAO.create().set("DHEXEC", TimeUtils.getNow()).set("NUNOTAORIG", nuNotaOrig)
-						.set("SEQUENCIAORIG", sequenciaOrig).set("NUNOTAGERADO", nuNotaGerado)
-						.set("SEQUENCIAGERADA", sequenciaGerada).set("ERRO", erro).save();
+				@SuppressWarnings("unused")
+				DynamicVO dynamicVO = 
+						impDAO.create()
+						.set("DHEXEC", TimeUtils.getNow())
+						.set("NUFIN", nufin)
+						.set("NUNOTA", nuNota)
+						.set("ERRO", erro)
+						.save();
 			} catch (Exception e) {
 				e.printStackTrace();
 			} finally {
@@ -245,8 +264,6 @@ public class EnviaBoletoAuto implements ScheduledAction {
 
 			jdbc.openSession();
 
-			System.out.println("nuNota: " + nuNota);
-
 			BigDecimal nroRelatorio = new BigDecimal(0);
 			Map<String, Object> parameters = new HashMap<>();
 			Report modeloImpressao = null;
@@ -256,6 +273,7 @@ public class EnviaBoletoAuto implements ScheduledAction {
 			nativeSql = new NativeSql(jdbc);
 			nativeSql.appendSql(" SELECT CAB.NUNOTA, CAB.NUMNOTA, TP.CODMODDOC, ");
 			nativeSql.appendSql(" NVL(CAB.STATUSNFSE,'N') AS STATUSNFSE, ");
+			nativeSql.appendSql(" NVL(CAB.STATUSNFE,'N') AS STATUSNFE, ");
 			nativeSql
 					.appendSql(" (SELECT NURFE FROM TGFMON WHERE CODMODNF = NVL(NUM.MODNOTAFIS,TP.CODMODNFSE)) NURFE ");
 			nativeSql.appendSql(" FROM TGFCAB CAB ");
@@ -269,12 +287,14 @@ public class EnviaBoletoAuto implements ScheduledAction {
 			while (resultado.next()) {
 
 				String statusNFSe = resultado.getString("STATUSNFSE");
+				String statusNFe = resultado.getString("STATUSNFE");
 
 				String codModDoc = resultado.getString("CODMODDOC");
-				BigDecimal numNota = null;
+				BigDecimal numNota = resultado.getBigDecimal("NUMNOTA");
 
 				System.out.println("nuNota: " + nuNota);
 				System.out.println("statusNFSe: " + statusNFSe);
+				System.out.println("statusNFe: " + statusNFe);
 				System.out.println("codModDoc: " + codModDoc);
 
 				JapeWrapper notaDAO = JapeFactory.dao("CabecalhoNota");
@@ -302,11 +322,11 @@ public class EnviaBoletoAuto implements ScheduledAction {
 
 					arqFatura = JasperExportManager.exportReportToPdf(jasperPrint);
 
-					arquivos.addPdfFile(arqFatura);
+					// arquivos.addPdfFile(arqFatura);
 
 					nomeAnexo = "NFSe_" + numNota;
 
-					arqFatura = null;
+					// arqFatura = null;
 				}
 
 			}
@@ -342,12 +362,15 @@ public class EnviaBoletoAuto implements ScheduledAction {
 		sql.append("  WHERE FIN.CODTIPTIT = TIT.CODTIPTIT ");
 		sql.append("    AND NVL(TIT.PROIBIMPBOL,'N') = 'N' ");
 		sql.append("    AND FIN.NUNOTA = " + nunota);
-		sql.append("    UNION ALL ");
-		sql.append(" SELECT FIN.NUFIN, FIN.CODCTABCOINT, FIN.CODBCO, FIN.CODEMP ");
-		sql.append("   FROM TGFFIN FIN, TGFTIT TIT ");
-		sql.append("  WHERE FIN.CODTIPTIT = TIT.CODTIPTIT ");
-		sql.append("    AND NVL(TIT.PROIBIMPBOL,'N') = 'N' ");
-		sql.append("    AND FIN.NUNOTA IN (SELECT NUNOTA FROM TGFVAR WHERE NUNOTAORIG = " + nunota + ")");
+		/*
+		 * sql.append("    UNION ALL ");
+		 * sql.append(" SELECT FIN.NUFIN, FIN.CODCTABCOINT, FIN.CODBCO, FIN.CODEMP ");
+		 * sql.append("   FROM TGFFIN FIN, TGFTIT TIT ");
+		 * sql.append("  WHERE FIN.CODTIPTIT = TIT.CODTIPTIT ");
+		 * sql.append("    AND NVL(TIT.PROIBIMPBOL,'N') = 'N' "); sql.
+		 * append("    AND FIN.NUNOTA IN (SELECT NUNOTA FROM TGFVAR WHERE NUNOTAORIG = "
+		 * + nunota + ")");
+		 */
 
 		ResultSet rs;
 		try {
@@ -357,17 +380,21 @@ public class EnviaBoletoAuto implements ScheduledAction {
 
 				BigDecimal nuFin = rs.getBigDecimal("NUFIN");
 
-				// boletos
+				System.out.println("nuFin: " + nuFin);
 
 				BoletoHelper.ConfiguracaoBoleto conf = new BoletoHelper.ConfiguracaoBoleto();
 				conf.setGerarNumeroBoleto(false);
 				conf.setAgrupamentoBoleto(5);
+				System.out.println("linha 388");
 				conf.setTipoSaidaBoleto(1);
 				conf.setFinanceirosSelecionados(Arrays.asList(new BigDecimal[] { nuFin }));
 				conf.setReimprimirBoleta(true);
+				System.out.println("linha 392");
 				BoletoHelper helper = new BoletoHelper();
 				helper.gerarBoleto(conf, false, false);
 
+				System.out.println("Chegou aqui");
+				
 				BoletoHelper boletoHelper = new BoletoHelper();
 				boletoHelper.gerarBoleto(conf, false, false);
 
@@ -380,6 +407,7 @@ public class EnviaBoletoAuto implements ScheduledAction {
 			}
 
 		} catch (Exception e2) {
+			insereLogTransf(e2.getMessage(), new BigDecimal(0), nunota);
 
 			e2.printStackTrace();
 			System.out.println("Fim ---- [ERRO - BOLETO] - erro boleto:" + e2.getMessage());
@@ -390,6 +418,7 @@ public class EnviaBoletoAuto implements ScheduledAction {
 
 		} catch (Exception e3) {
 
+			insereLogTransf(e3.getMessage(), new BigDecimal(0), nunota);
 			e3.printStackTrace();
 			System.out.println("Fim ---- [ERRO - BOLETO] - NÃO GEROU BOLETO:" + e3.getMessage());
 

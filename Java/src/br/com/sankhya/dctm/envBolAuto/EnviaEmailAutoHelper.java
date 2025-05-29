@@ -83,5 +83,21 @@ public class EnviaEmailAutoHelper {
 		}
 
 	}
+	
+	public void deletaFila(BigDecimal codFila) throws Exception {
+		
+		System.out.println("Entrou deletaFila. codFila: " + codFila);
+		
+		JdbcWrapper jdbc = JapeFactory.getEntityFacade().getJdbcWrapper();
+		NativeSql nativeSql = new NativeSql(jdbc);
+		
+		String sqlAnexo = " DELETE FROM TMDAXM WHERE CODFILA = " + codFila; 
+		nativeSql.executeUpdate(sqlAnexo);
+		
+		String sqlfila = " DELETE FROM TMDFMG WHERE CODFILA = " + codFila; 
+		nativeSql.executeUpdate(sqlfila);
+	
+		
+	}
 
 }
