@@ -3,6 +3,8 @@ package br.com.sankhya.dctm.envBolAuto;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 
+import com.sankhya.util.TimeUtils;
+
 import br.com.sankhya.jape.EntityFacade;
 import br.com.sankhya.jape.bmp.PersistentLocalEntity;
 import br.com.sankhya.jape.core.JapeSession;
@@ -12,6 +14,7 @@ import br.com.sankhya.jape.sql.NativeSql;
 import br.com.sankhya.jape.vo.DynamicVO;
 import br.com.sankhya.jape.vo.EntityVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
+import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.modelcore.util.EntityFacadeFactory;
 
 public class EnviaEmailAutoHelper {
@@ -51,7 +54,7 @@ public class EnviaEmailAutoHelper {
 		@SuppressWarnings("unused")
 		SessionHandle hnd = null;
 
-		BigDecimal codAnexo = null ;
+		BigDecimal codAnexo = null;
 
 		SessionHandle anexo = null;
 		try {
@@ -83,21 +86,40 @@ public class EnviaEmailAutoHelper {
 		}
 
 	}
-	
+
 	public void deletaFila(BigDecimal codFila) throws Exception {
-		
+
 		System.out.println("Entrou deletaFila. codFila: " + codFila);
-		
+
 		JdbcWrapper jdbc = JapeFactory.getEntityFacade().getJdbcWrapper();
 		NativeSql nativeSql = new NativeSql(jdbc);
-		
-		String sqlAnexo = " DELETE FROM TMDAXM WHERE CODFILA = " + codFila; 
+
+		String sqlAnexo = " DELETE FROM TMDAXM WHERE CODFILA = " + codFila;
 		nativeSql.executeUpdate(sqlAnexo);
-		
-		String sqlfila = " DELETE FROM TMDFMG WHERE CODFILA = " + codFila; 
+
+		String sqlfila = " DELETE FROM TMDFMG WHERE CODFILA = " + codFila;
 		nativeSql.executeUpdate(sqlfila);
-	
-		
+
+	}
+
+	public void insereLogTransf(String erro, BigDecimal nufin, BigDecimal nuNota) {
+
+		try {
+			SessionHandle hnd = null;
+			hnd = JapeSession.open();
+			JapeWrapper impDAO = JapeFactory.dao("AD_LOGENVBOLAUT");
+			try {
+				@SuppressWarnings("unused")
+				DynamicVO dynamicVO = impDAO.create().set("DHEXEC", TimeUtils.getNow()).set("NUFIN", nufin)
+						.set("NUNOTA", nuNota).set("ERRO", erro).save();
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				JapeSession.close(hnd);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 }
