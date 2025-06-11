@@ -41,8 +41,9 @@ dependencies {
     implementation 'br.com.sankhya:hazelcast-all-4.1:master'
     implementation 'br.com.sankhya.flex.vc.core:RegraNegocio:hotfix-ga-KB-90323-adiantamento'
     //Trabalhar com arquivos xls
-    //implementation("org.apache.poi:poi:3.9")
-    //implementation("org.apache.poi:poi-ooxml:3.9")
+    implementation("org.apache.poi:poi:3.17")
+    implementation("org.apache.poi:poi-ooxml:5.2.5")
+
 
     // para lib local
     //implementation(file("path"))

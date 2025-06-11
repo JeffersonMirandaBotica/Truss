@@ -1,7 +1,5 @@
-// Pacote da classe
 package br.com.sankhya.truss.enviaSeparacao.actions;
 
-// Importações necessárias para a ação, acesso a dados, SQL nativo, utilitários e manipulação de datas
 import br.com.sankhya.extensions.actionbutton.AcaoRotinaJava;
 import br.com.sankhya.extensions.actionbutton.ContextoAcao;
 import br.com.sankhya.extensions.actionbutton.Registro;
@@ -9,25 +7,30 @@ import br.com.sankhya.jape.EntityFacade;
 import br.com.sankhya.jape.dao.JdbcWrapper;
 import br.com.sankhya.jape.sql.NativeSql;
 import br.com.sankhya.jape.wrapper.JapeFactory;
+import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.modelcore.util.DynamicEntityNames;
 import br.com.sankhya.modelcore.util.EntityFacadeFactory;
-import br.com.sankhya.jape.wrapper.JapeWrapper;
 import com.sankhya.util.TimeUtils;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.text.SimpleDateFormat;
 import java.util.Base64;
 import java.util.Date;
 
-/**
- * Classe responsável por exportar dados da view AD_VWENVIOSEPARACAO,
- * gerar um arquivo CSV e registrar os envios na tabela AD_HISTENVIOSEP.
- */
-public class EnviaSeparacaoAction implements AcaoRotinaJava {
 
+public class EnviaSeparacaoXls implements AcaoRotinaJava {
     @Override
     public void doAction(ContextoAcao ctx) throws Exception {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("Envio Separacao");
+
         // Geração do nome do arquivo com data e hora atual
         String dataFormatada = new SimpleDateFormat("dd_MM_yyyy_HHmmss").format(new Date());
         String nomeArquivo = "EnvioSeparacao_" + dataFormatada + ".csv";
@@ -36,12 +39,17 @@ public class EnviaSeparacaoAction implements AcaoRotinaJava {
         EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
         JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
 
-        JapeWrapper cabDAO = JapeFactory.dao(DynamicEntityNames.CABECALHO_NOTA); // TGFCAB
         JapeWrapper histDAO = JapeFactory.dao("AD_HISTENVIOSEP"); // Tabela de histórico
 
-        // Cabeçalho do CSV
-        StringBuilder csv = new StringBuilder();
-        csv.append("CdMaterial;Descrição;QtdeCaixa;QtdeUnid;lote;NrPedido;Nfe;Transportador\n");
+        // Cabeçalho
+        Row headerRow = sheet.createRow(0);
+        String[] colunas = {"CdMaterial", "Descrição", "QtdeCaixa", "QtdeUnid", "lote", "NrPedido", "Nfe", "Transportador"};
+        for (int i = 0; i < colunas.length; i++) {
+            headerRow.createCell(i).setCellValue(colunas[i]);
+        }
+
+        // Índice da linha
+        int rowIdx = 1;
 
         try {
             // Recupera os registros selecionados na tela
@@ -78,15 +86,16 @@ public class EnviaSeparacaoAction implements AcaoRotinaJava {
                     String controle = r.getString("CONTROLE");
                     String pedido = r.getBigDecimal("NUNOTA").toString();
 
-                    // Monta linha do CSV
-                    csv.append(codprod).append(";")
-                            .append(descrprod).append(";")
-                            .append(qtdcaixa).append(";")
-                            .append(qtdneg).append(";")
-                            .append(controle).append(";")
-                            .append(pedido).append(";")
-                            .append(";") // NFE e Transportador vazios
-                            .append("\n");
+                    // Dentro do loop while (r.next())
+                    Row row = sheet.createRow(rowIdx++);
+                    row.createCell(0).setCellValue(codprod);
+                    row.createCell(1).setCellValue(descrprod);
+                    row.createCell(2).setCellValue(Double.parseDouble(qtdcaixa));
+                    row.createCell(3).setCellValue(Double.parseDouble(qtdneg));
+                    row.createCell(4).setCellValue(controle);
+                    row.createCell(5).setCellValue(pedido);
+                    row.createCell(6).setCellValue(""); // NFE
+                    row.createCell(7).setCellValue(""); // Transportador
 
                     // Registra o envio na tabela de histórico
                     histDAO.create()
@@ -101,19 +110,26 @@ public class EnviaSeparacaoAction implements AcaoRotinaJava {
                             .save();
                 }
 
-                // Codifica o CSV em base64 para permitir o download direto via link HTML
-                String csvBase64 = Base64.getEncoder().encodeToString(csv.toString().getBytes("UTF-8"));
-                String link = "<a download='" + nomeArquivo + "' href='data:text/csv;base64," + csvBase64 + "'>Clique aqui para baixar o arquivo</a>";
 
-                // Atualiza o cabeçalho da nota com data de liberação e status do pedido
-                cabDAO.prepareToUpdateByPK(nunota)
-                        .set("AD_DTLIBEXP", TimeUtils.getNow()) // Campo customizado
-                        .set("AD_STATUSPED", "29") // Status customizado da separação
-                        .update();
 
-                // Retorna mensagem de sucesso para o usuário com o link para download
-                ctx.setMensagemRetorno("<b>Arquivo gerado com sucesso.</b><br>" + link);
+                // Enviar ao usuário
+
             }
+
+            // Após preencher todas as linhas
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            workbook.write(out); // importante: escrever conteúdo
+            out.flush();         // importante: forçar escrita
+
+            // Encode Base64 do XLSX
+            String base64xlsx = Base64.getEncoder().encodeToString(out.toByteArray());
+            nomeArquivo = "EnvioSeparacao_" + dataFormatada + ".xlsx";
+
+            String link = "<a download='" + nomeArquivo + "' " +
+                    "href='data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," +
+                    base64xlsx + "'>Clique aqui para baixar o arquivo</a>";
+
+            ctx.setMensagemRetorno("<b>Arquivo gerado com sucesso.</b><br>" + link);
         } catch (Exception e) {
             // Em caso de erro, exibe a exceção
             e.printStackTrace();

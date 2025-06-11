@@ -10,7 +10,6 @@ import br.com.sankhya.truss.corte.helper.CorteHelper;
 
 public class RegraConfirmacaoNota implements RegraNegocioJava {
 
-
     @Override
     public void executa(ContextoRegra ctx) throws Exception {
 
@@ -22,16 +21,16 @@ public class RegraConfirmacaoNota implements RegraNegocioJava {
         try {
             String separaTerceiros = parDAO.findByPK(cabVO.asBigDecimal("CODPARC")).asString("AD_LOCALSEPARACAO");
             separaTerceiros = separaTerceiros == null ? "1" : separaTerceiros;
-            String indicaLote = CorteHelper.validaTopIndicaLote(cabVO.asBigDecimal("CODTIPOPER"));
 
-            if ("2".equals(separaTerceiros) && "S".equals(indicaLote)) {
+            if ("2".equals(separaTerceiros)) {
                 CorteHelper.indicaLotes(ctx.getNunota());
                 cabDAO.prepareToUpdateByPK(ctx.getNunota())
                         .set("AD_STATUSPED", "28")
                         .update();
-
             }
+            
             ctx.setSucesso(true);
+
         } catch(Exception e){
             e.printStackTrace();
             throw new Exception("Erro na regra de neg" + e.getMessage());
@@ -40,3 +39,6 @@ public class RegraConfirmacaoNota implements RegraNegocioJava {
     }
 
 }
+
+
+

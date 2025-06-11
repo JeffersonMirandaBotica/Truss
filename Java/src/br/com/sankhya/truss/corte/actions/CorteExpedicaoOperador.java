@@ -61,7 +61,7 @@ public class CorteExpedicaoOperador {
                 query.setNamedParameter("P_CODLOCAL", codlocal);
 
 
-                ResultSet r = query.executeQuery("SELECT NVL(SUM(DISPONIVEL),0) AS DISPONIVEL FROM AD_VW_ESTOQUEPORPARCEIRO WHERE CODPROD = :P_CODPROD AND CODLOCAL = :P_CODLOCAL");
+                ResultSet r = query.executeQuery("SELECT NVL(SUM(DISPONIVEL),0) AS DISPONIVEL FROM AD_VW_ESTOQUEPORPARCEIRO WHERE CODPROD = :P_CODPROD");
 
                 if (r.next()) {
                     disponivel = r.getBigDecimal("DISPONIVEL");
@@ -175,14 +175,17 @@ public class CorteExpedicaoOperador {
         Collection<DynamicVO> itesVO = iteDAO.find("NUNOTA = ?", nunota);
         EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
         JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
-
-
+        DynamicVO cabVO = cabDAO.findByPK(nunota);
 
         try {
 
-            cabDAO.prepareToUpdateByPK(nunota)
+            cabVO.setProperty("AD_DESCONSCORTE", "S");
+            dwfEntityFacade.saveEntity(DynamicEntityNames.CABECALHO_NOTA, (EntityVO) cabVO);
+
+            /*cabDAO.prepareToUpdateByPK(nunota)
                     .set("AD_DESCONSCORTE", "S")
-                    .update();
+                    .update();*/
+
             for (DynamicVO iteVO : itesVO) {
                 NativeSql query = new NativeSql(jdbc);
                 query.setNamedParameter("P_CODPROD", iteVO.asBigDecimal("CODPROD"));
@@ -191,7 +194,7 @@ public class CorteExpedicaoOperador {
                 ResultSet r = query.executeQuery("SELECT CODPROD, CONTROLE, NVL(DISPONIVEL,0) AS DISPONIVEL " +
                         " FROM AD_VW_ESTOQUEPORPARCEIRO EST " +
                         " WHERE CODPROD = :P_CODPROD " +
-                        " AND EST.CODLOCAL = :P_CODLOCAL " +
+                        " AND CONTROLE <> ' ' " +
                         " AND DISPONIVEL > 0 " +
                         " ORDER BY DTVAL ");
                 BigDecimal qtdRestante = iteVO.asBigDecimal("QTDNEG");
@@ -210,6 +213,9 @@ public class CorteExpedicaoOperador {
                             iteVO.setProperty("QTDNEG", disponivel);
                             iteVO.setProperty("VLRTOT", disponivel.multiply(iteVO.asBigDecimal("VLRUNIT")));
                             iteVO.setProperty("CONTROLE", controle);
+                            iteVO.setProperty("AD_CLASSCORT", "L");
+                            dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
+                            iteVO.setProperty("AD_CLASSCORT", null);
                             dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
                             qtdRestante = qtdRestante.subtract(disponivel);
                         }
@@ -226,11 +232,17 @@ public class CorteExpedicaoOperador {
                     count++;
                 }
 
-                cabDAO.prepareToUpdateByPK(nunota)
+                //cabVO.setProperty("AD_DESCONSCORTE", "N");
+                //dwfEntityFacade.saveEntity(DynamicEntityNames.CABECALHO_NOTA, (EntityVO) cabVO);
+
+                /*cabDAO.prepareToUpdateByPK(nunota)
                         .set("AD_DESCONSCORTE", "N")
-                        .update();
+                        .update();*/
+                recalculaNota(nunota);
+                cabVO.setProperty("AD_DESCONSCORTE", "N");
+                dwfEntityFacade.saveEntity(DynamicEntityNames.CABECALHO_NOTA, (EntityVO) cabVO);
             }
-            recalculaNota(nunota);
+
         } catch(Exception e){
             e.printStackTrace();
             throw new Exception("Erro ao indicar Lotes: " + e.getMessage());
