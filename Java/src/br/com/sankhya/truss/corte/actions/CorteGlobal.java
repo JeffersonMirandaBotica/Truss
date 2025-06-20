@@ -72,7 +72,7 @@ public class CorteGlobal implements AcaoRotinaJava {
 				if ("1".equals(localSeparacao)) {
 					CorteExpedicaoTruss.executaCorte(nunota);
 				} else {
-					CorteExpedicaoOperador.executaCorte(nunota);
+					new CorteExpedicaoOperador().executaCorte(nunota);
 				}
 			}
 
@@ -82,7 +82,4 @@ public class CorteGlobal implements AcaoRotinaJava {
 			throw new Exception("Erro ao executar a a" + e.getMessage());
 		}
 	}
-
-
-
 }

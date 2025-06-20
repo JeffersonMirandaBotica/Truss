@@ -55,6 +55,28 @@ public class CorteHelper {
 		}
 	}
 
+	public static String parcExigeLote(BigDecimal codparc) throws Exception {
+		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
+		JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
+		try {
+			String exigeLote = null;
+			NativeSql query = new NativeSql(jdbc);
+			query.setNamedParameter("P_CODPARC", codparc);
+			ResultSet r = query.executeQuery("SELECT NVL(AD_EXIGELOTE,'N') AS EXIGELOTE " +
+					" FROM TGFPAR PAR " +
+					" JOIN TSICID CID ON CID.CODCID = PAR.CODCID " +
+					" JOIN TSIUFS UFS ON UFS.CODUF = CID.UF " +
+					" JOIN TSIPAI PAI ON PAI.CODPAIS = UFS.CODPAIS " +
+					" WHERE PAR.CODPARC = :P_CODPARC ");
+			while (r.next())
+				exigeLote = r.getString("EXIGELOTE");
+			return exigeLote;
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new Exception("Falha ao validar Exigência de Lote.\n" + e.getMessage());
+		}
+	}
+
 	public static String validaTopIndicaLote(BigDecimal codtipoper) throws Exception {
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 		JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();

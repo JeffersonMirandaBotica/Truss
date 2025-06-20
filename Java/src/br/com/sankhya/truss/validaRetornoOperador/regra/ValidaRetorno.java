@@ -34,7 +34,7 @@ public class ValidaRetorno implements RegraNegocioJava {
             if(nunotaPedido == null) {
                 throw new Exception("Nota de retorno deve ter o pedido vinculado.");
             }
-
+            
             DynamicVO pedidoVO = cabDAO.findByPK(nunotaPedido);
 
             if(pedidoVO == null) {
@@ -57,12 +57,12 @@ public class ValidaRetorno implements RegraNegocioJava {
             int count = 0;
 
             while(r.next()) {
+                count++;
                 msgError = msgError + count + ". <b>Produto: </b>" + r.getBigDecimal("CODPROD") + " " + r.getString("DESCRPROD") +
                         " <b> Controle: </b> " + r.getString("CONTROLE") +
                         " | <b>Qtd. Retorno:</b> " + r.getBigDecimal("QTD_ORIGEM") +
                         " | <b>Qtd. Pedido:</b> " + r.getBigDecimal("QTD_RELACIONADA") +
                         "<br>";
-                count++;
             }
 
             if(count > 0){
@@ -95,9 +95,13 @@ public class ValidaRetorno implements RegraNegocioJava {
                 ctx.setMensagem(msgError);
                 ctx.setCodUsuLib(0);
             } else {
-                // Atualiza status para liberado para faturamento
+
+                BigDecimal qtdvol = cabVO.asBigDecimal("QTDVOL");
+
+                // Atualiza status para liberado para faturamento e a quantidade de volumes
                 cabDAO.prepareToUpdateByPK(nunotaPedido)
                         .set("AD_STATUSPED", "7")
+                        .set("QTDVOL", pedidoVO.asBigDecimal("QTDVOL").add(qtdvol))
                         .update();
 
                 // Atualiza quantidade de corte dos itens para zero
@@ -112,7 +116,6 @@ public class ValidaRetorno implements RegraNegocioJava {
                 ctx.setMensagem("");
                 ctx.setCodUsuLib(0);
             }
-
 
         } catch(Exception e) {
             e.printStackTrace();

@@ -40,6 +40,7 @@ public class EnviaSeparacaoXls implements AcaoRotinaJava {
         JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
 
         JapeWrapper histDAO = JapeFactory.dao("AD_HISTENVIOSEP"); // Tabela de histórico
+        JapeWrapper cabDAO = JapeFactory.dao(DynamicEntityNames.CABECALHO_NOTA); // TGFCAB
 
         // Cabeçalho
         Row headerRow = sheet.createRow(0);
@@ -108,11 +109,17 @@ public class EnviaSeparacaoXls implements AcaoRotinaJava {
                             .set("DHENVIO", TimeUtils.getNow()) // Data/Hora atual
                             .set("CODUSU", ctx.getUsuarioLogado()) // Usuário que executou a ação
                             .save();
+
+                    // Atualiza o cabeçalho da nota com data de liberação e status do pedido
+                    cabDAO.prepareToUpdateByPK(nunota)
+                            .set("AD_DTLIBEXP", TimeUtils.getNow()) // Campo customizado
+                            .set("AD_STATUSPED", "29") // Status customizado da separação
+                            .update();
                 }
 
 
 
-                // Enviar ao usuário
+
 
             }
 
@@ -128,6 +135,8 @@ public class EnviaSeparacaoXls implements AcaoRotinaJava {
             String link = "<a download='" + nomeArquivo + "' " +
                     "href='data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," +
                     base64xlsx + "'>Clique aqui para baixar o arquivo</a>";
+
+
 
             ctx.setMensagemRetorno("<b>Arquivo gerado com sucesso.</b><br>" + link);
         } catch (Exception e) {

@@ -99,20 +99,41 @@ public class EnviaSeparacaoAction implements AcaoRotinaJava {
                             .set("DHENVIO", TimeUtils.getNow()) // Data/Hora atual
                             .set("CODUSU", ctx.getUsuarioLogado()) // Usuário que executou a ação
                             .save();
+
+                    // Atualiza o cabeçalho da nota com data de liberação e status do pedido
+                    cabDAO.prepareToUpdateByPK(nunota)
+                            .set("AD_DTLIBEXP", TimeUtils.getNow()) // Campo customizado
+                            .set("AD_STATUSPED", "29") // Status customizado da separação
+                            .update();
                 }
 
-                // Codifica o CSV em base64 para permitir o download direto via link HTML
-                String csvBase64 = Base64.getEncoder().encodeToString(csv.toString().getBytes("UTF-8"));
+
+                /*
                 String link = "<a download='" + nomeArquivo + "' href='data:text/csv;base64," + csvBase64 + "'>Clique aqui para baixar o arquivo</a>";
 
-                // Atualiza o cabeçalho da nota com data de liberação e status do pedido
-                cabDAO.prepareToUpdateByPK(nunota)
-                        .set("AD_DTLIBEXP", TimeUtils.getNow()) // Campo customizado
-                        .set("AD_STATUSPED", "29") // Status customizado da separação
-                        .update();
+
+
 
                 // Retorna mensagem de sucesso para o usuário com o link para download
                 ctx.setMensagemRetorno("<b>Arquivo gerado com sucesso.</b><br>" + link);
+                */
+                // Codifica o CSV em base64 para permitir o download direto via link HTML
+
+                String csvBase64 = Base64.getEncoder().encodeToString(csv.toString().getBytes("UTF-8"));
+                String base64Url = "data:text/csv;base64," + csvBase64;
+
+                String html = "<html>" +
+                        "<head>" +
+                        "<meta http-equiv='refresh' content='0;url=" + base64Url + "'>" +
+                        "</head>" +
+                        "<body>" +
+                        "<p>Se o download não começar automaticamente, <a href='" + base64Url + "' download='" + nomeArquivo + "'>clique aqui</a>.</p>" +
+                        "</body>" +
+                        "</html>";
+
+                ctx.setMensagemRetorno(html);
+
+
             }
         } catch (Exception e) {
             // Em caso de erro, exibe a exceção

@@ -26,12 +26,14 @@ import java.util.Collection;
 import java.util.List;
 
 public class CorteExpedicaoOperador {
-
-    public static void executaCorte(BigDecimal nunota) throws Exception {
+    private static BigDecimal shelflife = null;
+    public void executaCorte(BigDecimal nunota) throws Exception {
         try {
             JapeWrapper iteDAO = JapeFactory.dao(DynamicEntityNames.ITEM_NOTA);
             JapeWrapper cabDAO = JapeFactory.dao(DynamicEntityNames.CABECALHO_NOTA);
             JapeWrapper proDAO = JapeFactory.dao(DynamicEntityNames.PRODUTO);
+            JapeWrapper parDAO = JapeFactory.dao(DynamicEntityNames.PARCEIRO);
+            JapeWrapper prefDAO = JapeFactory.dao(DynamicEntityNames.PARAMETRO_SISTEMA);
             EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
             JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
 
@@ -40,6 +42,7 @@ public class CorteExpedicaoOperador {
             sctx.makeCurrent();
 
             DynamicVO cabVO = cabDAO.findByPK(nunota);
+            DynamicVO parVO = parDAO.findByPK(cabVO.asBigDecimal("CODPARC"));
 
             if (!cabVO.asString("AD_STATUSPED").equals("4")) {
                 throw new Exception("O Pedido deve estar com status Pedido Aprovado.");
@@ -49,22 +52,56 @@ public class CorteExpedicaoOperador {
             int qtdItens = itesVO.size();
             int countDel = 0;
 
+            BigDecimal adcShelfLife = prefDAO.findOne("CHAVE = ?", "DIAADCSHELFLIFE").asBigDecimalOrZero("INTEIRO");
+            BigDecimal shelflife = parVO.asBigDecimal("AD_SHELFLIFE");
+
+            if(shelflife == null){
+                throw new Exception("<b>Parceiro não tem Shelf Life cadastrado. Procure a área responsável</b>");
+            } else {
+                shelflife = shelflife.add(adcShelfLife);
+            }
+
+            this.shelflife = shelflife;
+
             for (DynamicVO iteVO : itesVO) {
                 BigDecimal disponivel = BigDecimal.ZERO;
+                BigDecimal disponivelTerceiro = BigDecimal.ZERO;
                 BigDecimal codprod = iteVO.asBigDecimal("CODPROD");
                 BigDecimal codlocal = iteVO.asBigDecimal("CODLOCALORIG");
                 BigDecimal qtdneg = iteVO.asBigDecimal("QTDNEG");
+                BigDecimal codemp = iteVO.asBigDecimal("CODEMP");
                 BigDecimal qtdMinVenda = BigDecimal.ZERO;
                 BigDecimal sequencia = iteVO.asBigDecimal("SEQUENCIA");
+                NativeSql queryDispTerc = new NativeSql(jdbc);
+                queryDispTerc.setNamedParameter("P_CODPROD", codprod);
+                queryDispTerc.setNamedParameter("P_CODLOCAL", codlocal);
+                queryDispTerc.setNamedParameter("P_CODEMP", codemp);
+                ResultSet rDispTerc = queryDispTerc.executeQuery("SELECT * FROM AD_VW_ESTDISP WHERE CODPROD = :P_CODPROD " +
+                                                                     " AND CODLOCAL = :P_CODLOCAL" +
+                                                                     " AND CODEMP = :P_CODEMP ");
+                if(rDispTerc.next()) {
+                    disponivelTerceiro = rDispTerc.getBigDecimal("DISPONIVELTERCEIRO");
+                }
+
                 NativeSql query = new NativeSql(jdbc);
                 query.setNamedParameter("P_CODPROD", codprod);
                 query.setNamedParameter("P_CODLOCAL", codlocal);
+                query.setNamedParameter("P_CODEMP", codemp);
+                query.setNamedParameter("P_SHELFLIFE", shelflife);
 
-
-                ResultSet r = query.executeQuery("SELECT NVL(SUM(DISPONIVEL),0) AS DISPONIVEL FROM AD_VW_ESTOQUEPORPARCEIRO WHERE CODPROD = :P_CODPROD");
+                ResultSet r = query.executeQuery("SELECT NVL(SUM(DISPONIVEL),0) AS DISPONIVEL " +
+                                                    " FROM AD_VW_ESTOQUEPORPARCEIRO " +
+                                                    " WHERE CODPROD = :P_CODPROD " +
+                                                    " AND CODLOCAL = :P_CODLOCAL " +
+                                                    " AND CODEMP = :P_CODEMP " +
+                                                    " AND DTVAL >= TRUNC(SYSDATE) + :P_SHELFLIFE ");
 
                 if (r.next()) {
                     disponivel = r.getBigDecimal("DISPONIVEL");
+                }
+
+                if(disponivelTerceiro.compareTo(disponivel) < 0) {
+                    disponivel = disponivelTerceiro;
                 }
 
                 if (disponivel.compareTo(qtdneg) < 0) {
@@ -169,7 +206,7 @@ public class CorteExpedicaoOperador {
 
 
 
-    private static void indicaLotes(BigDecimal nunota) throws Exception {
+    private void indicaLotes(BigDecimal nunota) throws Exception {
         JapeWrapper iteDAO = JapeFactory.dao(DynamicEntityNames.ITEM_NOTA);
         JapeWrapper cabDAO = JapeFactory.dao(DynamicEntityNames.CABECALHO_NOTA);
         Collection<DynamicVO> itesVO = iteDAO.find("NUNOTA = ?", nunota);
@@ -182,20 +219,20 @@ public class CorteExpedicaoOperador {
             cabVO.setProperty("AD_DESCONSCORTE", "S");
             dwfEntityFacade.saveEntity(DynamicEntityNames.CABECALHO_NOTA, (EntityVO) cabVO);
 
-            /*cabDAO.prepareToUpdateByPK(nunota)
-                    .set("AD_DESCONSCORTE", "S")
-                    .update();*/
-
             for (DynamicVO iteVO : itesVO) {
                 NativeSql query = new NativeSql(jdbc);
                 query.setNamedParameter("P_CODPROD", iteVO.asBigDecimal("CODPROD"));
                 query.setNamedParameter("P_CODEMP", iteVO.asBigDecimal("CODEMP"));
                 query.setNamedParameter("P_CODLOCAL", iteVO.asBigDecimal("CODLOCALORIG"));
+                query.setNamedParameter("P_SHELFLIFE", this.shelflife);
                 ResultSet r = query.executeQuery("SELECT CODPROD, CONTROLE, NVL(DISPONIVEL,0) AS DISPONIVEL " +
                         " FROM AD_VW_ESTOQUEPORPARCEIRO EST " +
                         " WHERE CODPROD = :P_CODPROD " +
+                        " AND CODLOCAL = :P_CODLOCAL " +
+                        " AND CODEMP = :P_CODEMP " +
                         " AND CONTROLE <> ' ' " +
                         " AND DISPONIVEL > 0 " +
+                        " AND DTVAL >= TRUNC(SYSDATE) + :P_SHELFLIFE" +
                         " ORDER BY DTVAL ");
                 BigDecimal qtdRestante = iteVO.asBigDecimal("QTDNEG");
                 int count = 0;
@@ -232,12 +269,7 @@ public class CorteExpedicaoOperador {
                     count++;
                 }
 
-                //cabVO.setProperty("AD_DESCONSCORTE", "N");
-                //dwfEntityFacade.saveEntity(DynamicEntityNames.CABECALHO_NOTA, (EntityVO) cabVO);
 
-                /*cabDAO.prepareToUpdateByPK(nunota)
-                        .set("AD_DESCONSCORTE", "N")
-                        .update();*/
                 recalculaNota(nunota);
                 cabVO.setProperty("AD_DESCONSCORTE", "N");
                 dwfEntityFacade.saveEntity(DynamicEntityNames.CABECALHO_NOTA, (EntityVO) cabVO);
