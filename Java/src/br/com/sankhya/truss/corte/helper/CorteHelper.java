@@ -121,7 +121,7 @@ public class CorteHelper {
 	public static void indicaLotes(BigDecimal nunota) throws Exception {
 		JapeWrapper iteDAO = JapeFactory.dao("ItemNota");
 		JapeWrapper cabDAO = JapeFactory.dao("CabecalhoNota");
-		Collection<DynamicVO> itesVO = iteDAO.find("NUNOTA = ?", new Object[] { nunota });
+		Collection<DynamicVO> itesVO = iteDAO.find("NUNOTA = ? AND CONTROLE = ' '", new Object[] { nunota });
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 		JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
 		try {

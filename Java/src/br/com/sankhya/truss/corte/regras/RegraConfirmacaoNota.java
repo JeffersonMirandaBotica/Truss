@@ -2,6 +2,8 @@ package br.com.sankhya.truss.corte.regras;
 
 import br.com.sankhya.extensions.regrasnegocio.ContextoRegra;
 import br.com.sankhya.extensions.regrasnegocio.RegraNegocioJava;
+import br.com.sankhya.jape.dao.JdbcWrapper;
+import br.com.sankhya.jape.sql.NativeSql;
 import br.com.sankhya.jape.vo.DynamicVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
@@ -9,6 +11,7 @@ import br.com.sankhya.modelcore.util.DynamicEntityNames;
 import br.com.sankhya.truss.corte.helper.CorteHelper;
 
 import java.math.BigDecimal;
+import java.sql.ResultSet;
 
 public class RegraConfirmacaoNota implements RegraNegocioJava {
 
@@ -62,11 +65,24 @@ public class RegraConfirmacaoNota implements RegraNegocioJava {
     }
 
     private static boolean temControlePreenchido(BigDecimal nunota) throws Exception {
-        JapeWrapper iteDAO = JapeFactory.dao(DynamicEntityNames.ITEM_NOTA);
+        JdbcWrapper jdbc = JapeFactory.getEntityFacade().getJdbcWrapper();
+        NativeSql query = new NativeSql(jdbc);
 
-        DynamicVO iteVO = iteDAO.findOne("NUNOTA = ? AND CONTROLE <> ' '", nunota);
+        query.setNamedParameter("P_NUNOTA", nunota);
+        ResultSet r = query.executeQuery("SELECT COUNT(1) AS QTD " +
+                " FROM TGFITE ITE " +
+                " JOIN TGFPRO PRO ON PRO.CODPROD = ITE.CODPROD " +
+                " WHERE ITE.NUNOTA = P_NUNOTA " +
+                " AND ITE.CONTROLE <> ' ' " +
+                " AND PRO.CODGRUPOPROD LIKE '52%' ");
 
-        if (iteVO != null) {
+        BigDecimal qtd = BigDecimal.ZERO;
+        while(r.next()) {
+            qtd = r.getBigDecimal("QTD");
+        }
+
+
+        if (qtd.compareTo(BigDecimal.ZERO) > 0) {
             return true;
         } else {
             return false;
@@ -75,11 +91,24 @@ public class RegraConfirmacaoNota implements RegraNegocioJava {
     }
 
     private static boolean temControleNaoPreenchido(BigDecimal nunota) throws Exception {
-        JapeWrapper iteDAO = JapeFactory.dao(DynamicEntityNames.ITEM_NOTA);
+        JdbcWrapper jdbc = JapeFactory.getEntityFacade().getJdbcWrapper();
+        NativeSql query = new NativeSql(jdbc);
 
-        DynamicVO iteVO = iteDAO.findOne("NUNOTA = ? AND CONTROLE = ' '", nunota);
+        query.setNamedParameter("P_NUNOTA", nunota);
+        ResultSet r = query.executeQuery("SELECT COUNT(1) AS QTD " +
+                " FROM TGFITE ITE " +
+                " JOIN TGFPRO PRO ON PRO.CODPROD = ITE.CODPROD " +
+                " WHERE ITE.NUNOTA = P_NUNOTA " +
+                " AND ITE.CONTROLE = ' ' " +
+                " AND PRO.CODGRUPOPROD LIKE '52%' ");
 
-        if (iteVO != null) {
+        BigDecimal qtd = BigDecimal.ZERO;
+        while(r.next()) {
+            qtd = r.getBigDecimal("QTD");
+        }
+
+
+        if (qtd.compareTo(BigDecimal.ZERO) > 0) {
             return true;
         } else {
             return false;
