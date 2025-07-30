@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-public class CorteExpedicaoOperador {
+public class CorteExpedicaoOperadorOtimizado {
     private static BigDecimal shelflife = null;
     public void executaCorte(BigDecimal nunota) throws Exception {
         try {
@@ -63,97 +63,57 @@ public class CorteExpedicaoOperador {
 
             this.shelflife = shelflife;
 
-            for (DynamicVO iteVO : itesVO) {
-                BigDecimal disponivel = BigDecimal.ZERO;
-                BigDecimal disponivelTerceiro = BigDecimal.ZERO;
-                BigDecimal codprod = iteVO.asBigDecimal("CODPROD");
-                BigDecimal codlocal = iteVO.asBigDecimal("CODLOCALORIG");
-                BigDecimal qtdneg = iteVO.asBigDecimal("QTDNEG");
-                BigDecimal codemp = iteVO.asBigDecimal("CODEMP");
-                BigDecimal qtdMinVenda = BigDecimal.ZERO;
-                BigDecimal sequencia = iteVO.asBigDecimal("SEQUENCIA");
-                NativeSql queryDispTerc = new NativeSql(jdbc);
-                queryDispTerc.setNamedParameter("P_CODPROD", codprod);
-                queryDispTerc.setNamedParameter("P_CODLOCAL", codlocal);
-                queryDispTerc.setNamedParameter("P_CODEMP", codemp);
-                ResultSet rDispTerc = queryDispTerc.executeQuery("SELECT * FROM AD_VW_ESTDISP WHERE CODPROD = :P_CODPROD " +
-                                                                     " AND CODLOCAL = :P_CODLOCAL" +
-                                                                     " AND CODEMP = :P_CODEMP ");
-                if(rDispTerc.next()) {
-                    disponivelTerceiro = rDispTerc.getBigDecimal("DISPONIVELTERCEIRO");
-                }
-
-                DynamicVO pVO = proDAO.findByPK(iteVO.asBigDecimal("CODPROD"));
-
-                String tipcontest = pVO.asString("TIPCONTEST");
-
-                NativeSql query = new NativeSql(jdbc);
-                query.setNamedParameter("P_CODPROD", codprod);
-                query.setNamedParameter("P_CODLOCAL", codlocal);
-                query.setNamedParameter("P_CODEMP", codemp);
-                query.setNamedParameter("P_SHELFLIFE", shelflife);
-                query.setNamedParameter("P_TIPCONTEST", tipcontest);
+            NativeSql s = new NativeSql(jdbc);
+            s.setNamedParameter("P_NUNOTA", nunota);
+            ResultSet result = s.executeQuery(" SELECT " +
+                    " PRE.NUNOTA, " +
+                    " PRE.SEQUENCIA, " +
+                    " PRE.CODLOCAL, " +
+                    " PRE.CODPROD, " +
+                    " PRE.DISPONIVELTERCEIRO, " +
+                    " PRE.QTDNEG, " +
+                    " PRE.QTDPEDIDO " +
+                    " FROM AD_VW_PREVIEWPEDIDO PRE " +
+                    " JOIN TGFITE ITE ON ITE.NUNOTA = PRE.NUNOTA AND ITE.SEQUENCIA = PRE.SEQUENCIA AND ITE.CODLOCALORIG = PRE.CODLOCAL " +
+                    " WHERE PRE.NUNOTA = :P_NUNOTA " +
+                    " ORDER BY PRE.SEQUENCIA ");
 
 
-                ResultSet r = query.executeQuery("SELECT NVL(SUM(DISPONIVEL),0) AS DISPONIVEL " +
-                                                    " FROM AD_VW_ESTOQUEPORPARCEIRO " +
-                                                    " WHERE CODPROD = :P_CODPROD " +
-                                                    " AND CODLOCAL = :P_CODLOCAL " +
-                                                    " AND CODEMP = :P_CODEMP " +
-                                                    " AND (DTVAL >= TRUNC(SYSDATE) + :P_SHELFLIFE OR :P_TIPCONTEST <> 'L')");
+            while (result.next()) {
 
-                if (r.next()) {
-                    disponivel = r.getBigDecimal("DISPONIVEL");
-                }
+                BigDecimal sequencia = result.getBigDecimal("SEQUENCIA");
+                BigDecimal qtdpedido = result.getBigDecimal("QTDPEDIDO");
+                BigDecimal qtdneg = result.getBigDecimal("QTDNEG");
+                DynamicVO iteVO = iteDAO.findByPK(nunota, sequencia);
 
-                if(disponivelTerceiro.compareTo(disponivel) < 0) {
-                    disponivel = disponivelTerceiro;
-                }
+                if(qtdpedido.equals(BigDecimal.ZERO)) {
+                    countDel++;
+                    iteDAO.prepareToUpdateByPK(nunota, sequencia)
+                            .set("AD_CLASSCORT", "RT")
+                            .update();
+                    iteDAO.delete(new Object[]{nunota, sequencia});
 
-                if (disponivel.compareTo(qtdneg) < 0) {
-
-                    DynamicVO proVO = proDAO.findByPK(codprod);
-                    qtdMinVenda = proVO.asBigDecimal("AD_QTDMINVENDA");
-                    if (qtdMinVenda == null) {
-                        throw new Exception("Produto " + codprod + " - " + proVO.asString("DESCRPROD") + " npossui cadastro de quantidade mpara venda.\nRealize o cadastro.");
-                    }
-
-                    BigDecimal newQtdNeg = disponivel.subtract(disponivel.remainder(qtdMinVenda));
-
+                } else if (qtdpedido.compareTo(qtdneg) < 0){
                     iteDAO.prepareToUpdateByPK(nunota, sequencia)
                             .set("AD_CLASSCORT", "RP")
                             .update();
 
+                    iteVO.setProperty("QTDNEG", qtdpedido);
+                    iteVO.setProperty("VLRTOT", qtdpedido.multiply(iteVO.asBigDecimal("VLRUNIT")));
 
-                    if (newQtdNeg.signum() <= 0) {
-                        try {
-                            countDel++;
-                            iteDAO.prepareToUpdateByPK(nunota, sequencia)
-                                    .set("AD_CLASSCORT", "RT")
-                                    .update();
-
-                            iteDAO.delete(new Object[]{nunota, sequencia});
-                        } catch (Exception e) {
-                            throw new Exception("Erro ao deletar\n" + e.getMessage());
-                        }
-                    } else {
-
-                        iteVO.setProperty("QTDNEG", newQtdNeg);
-                        iteVO.setProperty("VLRTOT", newQtdNeg.multiply(iteVO.asBigDecimal("VLRUNIT")));
-
-                        CentralItemNota itemNota = new CentralItemNota();
-                        itemNota.recalcularValores("QTDNEG", newQtdNeg.toString(), iteVO, nunota);
+                    CentralItemNota itemNota = new CentralItemNota();
+                    itemNota.recalcularValores("QTDNEG", qtdpedido.toString(), iteVO, nunota);
 
 
-                        List<DynamicVO> itensVO = new ArrayList<DynamicVO>();
-                        itensVO.add(iteVO);
+                    List<DynamicVO> itensVO = new ArrayList<DynamicVO>();
+                    itensVO.add(iteVO);
 
-                        CACHelper cacHelper = new CACHelper();
-                        cacHelper.incluirAlterarItem(nunota, sctx, null, true, itensVO);
+                    CACHelper cacHelper = new CACHelper();
+                    cacHelper.incluirAlterarItem(nunota, sctx, null, true, itensVO);
 
-                        iteVO.setProperty("AD_CLASSCORT", null);
-                        dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
-                    }
+                    iteVO.setProperty("AD_CLASSCORT", null);
+                    dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
+
                 }
 
 
@@ -168,7 +128,6 @@ public class CorteExpedicaoOperador {
             if (rs.next()) {
                 dhTopCorte = rs.getTimestamp("DHALTER");
             }
-
 
             cabDAO.prepareToUpdate(cabVO)
                     .set("CODTIPOPER", topCorte)
@@ -227,63 +186,27 @@ public class CorteExpedicaoOperador {
             cabVO.setProperty("AD_DESCONSCORTE", "S");
             dwfEntityFacade.saveEntity(DynamicEntityNames.CABECALHO_NOTA, (EntityVO) cabVO);
 
-            for (DynamicVO iteVO : itesVO) {
-                DynamicVO proVO = proDAO.findByPK(iteVO.asBigDecimal("CODPROD"));
-                String tipcontest = proVO.asString("TIPCONTEST");
-                if(tipcontest.equals("L")) {
-                    NativeSql query = new NativeSql(jdbc);
-                    query.setNamedParameter("P_CODPROD", iteVO.asBigDecimal("CODPROD"));
-                    query.setNamedParameter("P_CODEMP", iteVO.asBigDecimal("CODEMP"));
-                    query.setNamedParameter("P_CODLOCAL", iteVO.asBigDecimal("CODLOCALORIG"));
-                    query.setNamedParameter("P_SHELFLIFE", this.shelflife);
-                    ResultSet r = query.executeQuery("SELECT CODPROD, CONTROLE, NVL(DISPONIVEL,0) AS DISPONIVEL " +
-                            " FROM AD_VW_ESTOQUEPORPARCEIRO EST " +
-                            " WHERE CODPROD = :P_CODPROD " +
-                            " AND CODLOCAL = :P_CODLOCAL " +
-                            " AND CODEMP = :P_CODEMP " +
-                            " AND CONTROLE <> ' ' " +
-                            " AND DISPONIVEL > 0 " +
-                            " AND DTVAL >= TRUNC(SYSDATE) + :P_SHELFLIFE" +
-                            " ORDER BY DTVAL ");
-                    BigDecimal qtdRestante = iteVO.asBigDecimal("QTDNEG");
-                    int count = 0;
+            NativeSql q = new NativeSql(jdbc);
+            q.setNamedParameter("P_NUNOTA", nunota);
+            ResultSet r = q.executeQuery("SELECT V.*, ROW_NUMBER() OVER (PARTITION BY SEQUENCIA ORDER BY SEQUENCIA) AS LINHA FROM AD_VW_PEDIDOPORLOTE V WHERE NUNOTA = :P_NUNOTA");
 
-                    while (r.next()) {
-                        BigDecimal disponivel = r.getBigDecimal("DISPONIVEL");
-                        String controle = r.getString("CONTROLE");
+            while(r.next()) {
+                BigDecimal linha = r.getBigDecimal("LINHA");
+                String controle = r.getString("CONTROLE");
+                BigDecimal quantidade = r.getBigDecimal("QTD_A_SEPARAR");
+                DynamicVO iteVO = iteDAO.findByPK(nunota, r.getBigDecimal("SEQUENCIA"));
 
-                        if (count == 0) {
-                            if (disponivel.compareTo(qtdRestante) >= 0) {
-                                iteVO.setProperty("CONTROLE", controle);
-                                dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
-                                break;
-                            } else {
-                                iteVO.setProperty("QTDNEG", disponivel);
-                                iteVO.setProperty("VLRTOT", disponivel.multiply(iteVO.asBigDecimal("VLRUNIT")));
-                                iteVO.setProperty("CONTROLE", controle);
-                                iteVO.setProperty("AD_CLASSCORT", "L");
-                                dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
-                                iteVO.setProperty("AD_CLASSCORT", null);
-                                dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
-                                qtdRestante = qtdRestante.subtract(disponivel);
-                            }
-                        } else {
-                            if (disponivel.compareTo(qtdRestante) >= 0) {
-                                insereItem(iteVO, qtdRestante, controle);
-                                break;
-                            } else {
-                                insereItem(iteVO, disponivel, controle);
-                                qtdRestante = qtdRestante.subtract(disponivel);
-                            }
-                        }
-
-                        count++;
-                    }
-
-
-                    recalculaNota(nunota);
-                    cabVO.setProperty("AD_DESCONSCORTE", "N");
-                    dwfEntityFacade.saveEntity(DynamicEntityNames.CABECALHO_NOTA, (EntityVO) cabVO);
+                if(linha.equals(BigDecimal.ONE)){
+                    iteVO.setProperty("CONTROLE", controle);
+                    iteVO.setProperty("QTDNEG", quantidade);
+                    iteVO.setProperty("VLRTOT", quantidade.multiply(iteVO.asBigDecimal("VLRUNIT")));
+                    iteVO.setProperty("CONTROLE", controle);
+                    iteVO.setProperty("AD_CLASSCORT", "L");
+                    dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
+                    iteVO.setProperty("AD_CLASSCORT", null);
+                    dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
+                } else {
+                    insereItem(iteVO, quantidade, controle);
                 }
             }
 
@@ -293,8 +216,6 @@ public class CorteExpedicaoOperador {
         } finally {
             jdbc.closeSession();
         }
-
-
 
     }
 

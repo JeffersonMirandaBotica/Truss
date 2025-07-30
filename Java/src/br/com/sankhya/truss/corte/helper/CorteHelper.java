@@ -15,6 +15,7 @@ import br.com.sankhya.mgecomercial.model.centrais.cac.CACSP;
 import br.com.sankhya.mgecomercial.model.centrais.cac.CACSPHome;
 import br.com.sankhya.modelcore.auth.AuthenticationInfo;
 import br.com.sankhya.modelcore.comercial.impostos.ImpostosHelpper;
+import br.com.sankhya.modelcore.util.DynamicEntityNames;
 import br.com.sankhya.modelcore.util.EntityFacadeFactory;
 import br.com.sankhya.ws.ServiceContext;
 import com.sankhya.util.XMLUtils;
@@ -125,6 +126,10 @@ public class CorteHelper {
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 		JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
 		try {
+			String verificaShelfLife = verificaEstoqueShelfLife(nunota);
+			if(verificaShelfLife != null){
+				throw new Exception(verificaShelfLife);
+			}
 			((FluidUpdateVO)cabDAO.prepareToUpdateByPK(new Object[] { nunota }).set("AD_DESCONSCORTE", "S"))
 					.update();
 			for (DynamicVO iteVO : itesVO) {
@@ -169,6 +174,83 @@ public class CorteHelper {
 		} finally {
 			jdbc.closeSession();
 		}
+	}
+
+	private static String verificaEstoqueShelfLife(BigDecimal nunota) throws Exception {
+
+		JapeWrapper iteDAO = JapeFactory.dao(DynamicEntityNames.ITEM_NOTA);
+		JapeWrapper cabDAO = JapeFactory.dao(DynamicEntityNames.CABECALHO_NOTA);
+		JapeWrapper parDAO = JapeFactory.dao(DynamicEntityNames.PARCEIRO);
+		JapeWrapper proDAO = JapeFactory.dao(DynamicEntityNames.PRODUTO);
+		JapeWrapper prefDAO = JapeFactory.dao(DynamicEntityNames.PARAMETRO_SISTEMA);
+		String msgError = "Os seguintes produtos não possuem quantidades suficientes devido ao shelflife do parceiro.<br>";
+		try {
+			Collection<DynamicVO> itesVO = iteDAO.find("NUNOTA = ?", nunota);
+			DynamicVO cabVO = cabDAO.findByPK(nunota);
+			DynamicVO parVO = parDAO.findByPK(cabVO.asBigDecimal("CODPARC"));
+			EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
+			JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
+
+			BigDecimal adcShelfLife = prefDAO.findOne("CHAVE = ?", "DIAADCSHELFLIFE").asBigDecimalOrZero("INTEIRO");
+			BigDecimal shelflife = parVO.asBigDecimal("AD_SHELFLIFE");
+
+			if (shelflife == null) {
+				throw new Exception("<b>Parceiro não tem Shelf Life cadastrado. Procure a área responsável</b>");
+			} else {
+				shelflife = shelflife.add(adcShelfLife);
+			}
+
+			int count = 0;
+
+			for (DynamicVO iteVO : itesVO) {
+
+
+				BigDecimal codprod = iteVO.asBigDecimal("CODPROD");
+				BigDecimal codlocal = iteVO.asBigDecimal("CODLOCALORIG");
+				BigDecimal codemp = iteVO.asBigDecimal("CODEMP");
+				BigDecimal disponivelTerceiro = BigDecimal.ZERO;
+				BigDecimal qtdneg = iteVO.asBigDecimal("QTDNEG");
+
+
+				DynamicVO proVO = proDAO.findByPK(codprod);
+
+
+				NativeSql query = new NativeSql(jdbc);
+				query.setNamedParameter("P_CODPROD", codprod);
+				query.setNamedParameter("P_CODLOCAL", codlocal);
+				query.setNamedParameter("P_CODEMP", codemp);
+				query.setNamedParameter("P_SHELFLIFE", shelflife);
+
+				ResultSet r = query.executeQuery("SELECT NVL(SUM(EST.DISPONIVEL),0) AS DISPONIVEL " +
+						" FROM AD_VW_ESTOQUEPORPARCEIRO EST " +
+						" JOIN TGFPRO PRO ON PRO.CODPROD = EST.CODPROD " +
+						" WHERE EST.CODPROD = :P_CODPROD " +
+						" AND EST.CODLOCAL = :P_CODLOCAL " +
+						" AND EST.CODEMP = :P_CODEMP " +
+						" AND (EST.DTVAL >= TRUNC(SYSDATE) + :P_SHELFLIFE OR PRO.TIPCONTEST <> 'L') ");
+
+
+				while (r.next()) {
+					disponivelTerceiro = r.getBigDecimal("DISPONIVEL");
+				}
+
+				if (disponivelTerceiro.compareTo(qtdneg) < 0) {
+					count++;
+					msgError = msgError + count + ". " + iteVO.asBigDecimal("CODPROD") + " " + proVO.asString("DESCRPROD") + "| Qtd. Disponível: " + disponivelTerceiro + "<br>";
+				}
+
+				if (count == 0) {
+					msgError = null;
+				}
+
+			}
+		} catch(Exception e) {
+			e.printStackTrace();
+			throw new Exception("Falha ao verificar estoque shelflife: " + e.getMessage());
+		}
+
+		return msgError;
+
 	}
 
 	public static void insereItem(DynamicVO iteVO, BigDecimal quantidade, String controle) throws Exception {

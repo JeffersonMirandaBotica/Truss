@@ -53,13 +53,21 @@ public class AlteraEmpresaEvent implements EventoProgramavelJava {
         JapeWrapper parDAO = JapeFactory.dao(DynamicEntityNames.PARCEIRO);
 
         try{
-            if(!cabVO.asString("TIPMOV").equals("P")){
+            if (!cabVO.asBigDecimal("CODEMP").equals(BigDecimal.ONE) && !cabVO.asBigDecimal("CODEMP").equals(BigDecimal.valueOf(6))){
+                return;
+            }
+
+            if(!(cabVO.asString("TIPMOV").equals("P") )){
+                return;
+            }
+
+            if( cabVO.asBigDecimal("CODTIPOPER").equals(BigDecimal.valueOf(3102))) {
                 return;
             }
 
             if("U".equals(tipo) ){
                 DynamicVO oldCabVO = (DynamicVO) evt.getOldVO();
-                if(oldCabVO.asBigDecimal("CODPARC").equals(cabVO.asBigDecimal("CODPARC"))){
+                if(oldCabVO.asBigDecimal("CODPARC").equals(cabVO.asBigDecimal("CODPARC")) && oldCabVO.asBigDecimal("CODEMP").equals(cabVO.asBigDecimal("CODEMP"))){
                     return;
                 }
             }
@@ -68,7 +76,7 @@ public class AlteraEmpresaEvent implements EventoProgramavelJava {
             String localSeparacao = parVO.asString("AD_LOCALSEPARACAO");
 
             if(localSeparacao == null) {
-                throw new Exception("Parceiro não possui local de separação especificado. Verifique o cadastro.");
+                throw new Exception("Parceiro nao possui local de separacao especificado. Verifique o cadastro.");
             }
 
             if(localSeparacao.equals("2")) {

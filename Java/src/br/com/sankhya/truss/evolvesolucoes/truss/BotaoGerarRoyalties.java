@@ -143,6 +143,9 @@ import java.sql.Timestamp;
 /* 114 */       Collection<DynamicVO> tops = dwfEntityFacade.findByDynamicFinderAsVO(new FinderWrapper("TipoOperacao", 
 /* 115 */             "this.CODTIPOPER = ?", new Object[] { configVO.asBigDecimal("CODTIPOPER") }));
 /* 116 */       DynamicVO topVO = tops.iterator().next();
+                if(configVO.asBigDecimal("CODEMPDEST").equals(BigDecimal.valueOf(6))) {
+					throw new Exception("Codempdest: Empresa 6 - Codemp: : " + configVO.asBigDecimal("CODEMP"));
+				}
 /* 117 */       Element elemCabecalho = new Element("Cabecalho");
 /* 118 */       XMLUtils.addContentElement(elemCabecalho, "NUNOTA", "");
 /* 119 */       XMLUtils.addContentElement(elemCabecalho, "NUMNOTA", BigDecimal.ZERO);

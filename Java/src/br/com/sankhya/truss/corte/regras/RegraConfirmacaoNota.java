@@ -21,6 +21,7 @@ public class RegraConfirmacaoNota implements RegraNegocioJava {
         BigDecimal nunota = ctx.getNunota();
         JapeWrapper parDAO = JapeFactory.dao(DynamicEntityNames.PARCEIRO);
         JapeWrapper cabDAO = JapeFactory.dao(DynamicEntityNames.CABECALHO_NOTA);
+        JapeWrapper prefDAO = JapeFactory.dao(DynamicEntityNames.PARAMETRO_SISTEMA);
         DynamicVO cabVO = cabDAO.findByPK(nunota);
 
 
@@ -30,25 +31,27 @@ public class RegraConfirmacaoNota implements RegraNegocioJava {
             BigDecimal codparc = parVO.asBigDecimal("CODPARC");
             String separaTerceiros = parVO.asString("AD_LOCALSEPARACAO");
             separaTerceiros = separaTerceiros == null ? "1" : separaTerceiros;
+            String tipmov = cabVO.asString("TIPMOV");
 
-            if ("2".equals(separaTerceiros)) {
+            if ("2".equals(separaTerceiros) || ("J".equals(tipmov) && codparc.equals(BigDecimal.valueOf(6)))) {
                 boolean exigeLote = CorteHelper.parcExigeLote(codparc).equals("S");
                 boolean temControlePreenchido = temControlePreenchido(nunota);
                 boolean temControleNaoPreenchido = temControleNaoPreenchido(nunota);
 
-                if(!exigeLote && temControlePreenchido) {
-                    throw new Exception("O país do parceiro exige que o lote seja preenchido manualmente.");
-                } else if(exigeLote && temControleNaoPreenchido) {
-                    throw new Exception("Para esta operação o lote não pode ser preenchido.");
+                if(exigeLote && temControleNaoPreenchido) {
+                    throw new Exception("O país do parceiro exige lote específico. Faça o preenchimento do lote dos produtos acabados.");
                 }
 
-                if(!exigeLote) {
+
+
                     CorteHelper.indicaLotes(nunota);
-                }
 
-                cabDAO.prepareToUpdateByPK(nunota)
-                        .set("AD_STATUSPED", "28")
-                        .update();
+                    if(cabVO.asString("STATUSNOTA").equals("L")) {
+                        cabDAO.prepareToUpdateByPK(nunota)
+                                .set("AD_STATUSPED", "28")
+                                .update();
+                    }
+
 
             }
 
@@ -72,7 +75,7 @@ public class RegraConfirmacaoNota implements RegraNegocioJava {
         ResultSet r = query.executeQuery("SELECT COUNT(1) AS QTD " +
                 " FROM TGFITE ITE " +
                 " JOIN TGFPRO PRO ON PRO.CODPROD = ITE.CODPROD " +
-                " WHERE ITE.NUNOTA = P_NUNOTA " +
+                " WHERE ITE.NUNOTA = :P_NUNOTA " +
                 " AND ITE.CONTROLE <> ' ' " +
                 " AND PRO.CODGRUPOPROD LIKE '52%' ");
 
@@ -98,7 +101,7 @@ public class RegraConfirmacaoNota implements RegraNegocioJava {
         ResultSet r = query.executeQuery("SELECT COUNT(1) AS QTD " +
                 " FROM TGFITE ITE " +
                 " JOIN TGFPRO PRO ON PRO.CODPROD = ITE.CODPROD " +
-                " WHERE ITE.NUNOTA = P_NUNOTA " +
+                " WHERE ITE.NUNOTA = :P_NUNOTA " +
                 " AND ITE.CONTROLE = ' ' " +
                 " AND PRO.CODGRUPOPROD LIKE '52%' ");
 

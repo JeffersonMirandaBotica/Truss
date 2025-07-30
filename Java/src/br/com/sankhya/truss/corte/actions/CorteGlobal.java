@@ -68,11 +68,16 @@ public class CorteGlobal implements AcaoRotinaJava {
 				DynamicVO parVO = parDAO.findByPK(cabVO.asBigDecimal("CODPARC"));
 
 				String localSeparacao = parVO.asString("AD_LOCALSEPARACAO") == null ? "1" : parVO.asString("AD_LOCALSEPARACAO");
+				BigDecimal codemp = cabVO.asBigDecimal("CODEMP");
+
+				if((codemp.equals(BigDecimal.valueOf(6)) && !localSeparacao.equals("2")) || (codemp.equals(BigDecimal.ONE) && !localSeparacao.equals("1"))){
+					ctx.mostraErro("Local de separação do parceiro incompatível com a empresa do pedido. Verifique cadastro.");
+				}
 
 				if ("1".equals(localSeparacao)) {
 					CorteExpedicaoTruss.executaCorte(nunota);
 				} else {
-					new CorteExpedicaoOperador().executaCorte(nunota);
+					new CorteExpedicaoOperadorOtimizado().executaCorte(nunota);
 				}
 			}
 
