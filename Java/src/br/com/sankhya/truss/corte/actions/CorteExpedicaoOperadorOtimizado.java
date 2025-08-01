@@ -188,13 +188,14 @@ public class CorteExpedicaoOperadorOtimizado {
 
             NativeSql q = new NativeSql(jdbc);
             q.setNamedParameter("P_NUNOTA", nunota);
-            ResultSet r = q.executeQuery("SELECT V.*, ROW_NUMBER() OVER (PARTITION BY SEQUENCIA ORDER BY SEQUENCIA) AS LINHA FROM AD_VW_PEDIDOPORLOTE V WHERE NUNOTA = :P_NUNOTA");
+            ResultSet r = q.executeQuery("SELECT V.*, ROW_NUMBER() OVER (PARTITION BY SEQUENCIA ORDER BY SEQUENCIA) AS LINHA FROM AD_VW_PEDIDOPORLOTE2 V WHERE NUNOTA = :P_NUNOTA");
 
             while(r.next()) {
                 BigDecimal linha = r.getBigDecimal("LINHA");
                 String controle = r.getString("CONTROLE");
                 BigDecimal quantidade = r.getBigDecimal("QTD_A_SEPARAR");
                 DynamicVO iteVO = iteDAO.findByPK(nunota, r.getBigDecimal("SEQUENCIA"));
+                BigDecimal codparcest = r.getBigDecimal("CODPARC");
 
                 if(linha.equals(BigDecimal.ONE)){
                     iteVO.setProperty("CONTROLE", controle);
@@ -202,14 +203,15 @@ public class CorteExpedicaoOperadorOtimizado {
                     iteVO.setProperty("VLRTOT", quantidade.multiply(iteVO.asBigDecimal("VLRUNIT")));
                     iteVO.setProperty("CONTROLE", controle);
                     iteVO.setProperty("AD_CLASSCORT", "L");
+                    iteVO.setProperty("AD_CODPARCEST", codparcest);
                     dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
                     iteVO.setProperty("AD_CLASSCORT", null);
                     dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
                 } else {
-                    insereItem(iteVO, quantidade, controle);
+                    insereItem(iteVO, quantidade, controle, codparcest);
                 }
             }
-
+            recalculaNota(nunota);
         } catch(Exception e){
             e.printStackTrace();
             throw new Exception("Erro ao indicar Lotes: " + e.getMessage());
@@ -219,7 +221,7 @@ public class CorteExpedicaoOperadorOtimizado {
 
     }
 
-    private static void insereItem (DynamicVO iteVO, BigDecimal quantidade, String controle) throws Exception {
+    private static void insereItem (DynamicVO iteVO, BigDecimal quantidade, String controle, BigDecimal codparcEst) throws Exception {
 
         JapeWrapper iteDAO = JapeFactory.dao(DynamicEntityNames.ITEM_NOTA);
         try {
@@ -236,6 +238,7 @@ public class CorteExpedicaoOperadorOtimizado {
                     .set("ATUALESTOQUE", iteVO.asBigDecimal("ATUALESTOQUE"))
                     .set("RESERVA", iteVO.asString("RESERVA"))
                     .set("NUTAB", iteVO.asBigDecimal("NUTAB"))
+                    .set("AD_CODPARCEST", codparcEst)
                     .save();
         } catch(Exception e) {
             throw new Exception("Erro ao incluir itens de lote: " + e.getMessage());
