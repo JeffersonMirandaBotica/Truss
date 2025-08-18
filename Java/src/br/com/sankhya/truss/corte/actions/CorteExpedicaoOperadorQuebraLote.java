@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-public class CorteExpedicaoOperadorOtimizado {
+public class CorteExpedicaoOperadorQuebraLote {
     private static BigDecimal shelflife = null;
     public void executaCorte(BigDecimal nunota) throws Exception {
         try {
@@ -65,18 +65,8 @@ public class CorteExpedicaoOperadorOtimizado {
 
             NativeSql s = new NativeSql(jdbc);
             s.setNamedParameter("P_NUNOTA", nunota);
-            ResultSet result = s.executeQuery(" SELECT " +
-                    " PRE.NUNOTA, " +
-                    " PRE.SEQUENCIA, " +
-                    " PRE.CODLOCAL, " +
-                    " PRE.CODPROD, " +
-                    " PRE.DISPONIVELTERCEIRO, " +
-                    " PRE.QTDNEG, " +
-                    " PRE.QTDPEDIDO " +  
-                    " FROM AD_VW_PREVIEWPEDIDO PRE " +
-                    " JOIN TGFITE ITE ON ITE.NUNOTA = PRE.NUNOTA AND ITE.SEQUENCIA = PRE.SEQUENCIA AND ITE.CODLOCALORIG = PRE.CODLOCAL " +
-                    " WHERE PRE.NUNOTA = :P_NUNOTA " +
-                    " ORDER BY PRE.SEQUENCIA ");
+            ResultSet result = s.executeQuery("SELECT CODPROD, FLOOR(SUM(ESTOQUE) / AD_QTDMINVENDA) * AD_QTDMINVENDA AS QTDPEDIDO, SEQUENCIA, QTDNEG, AD_QTDMINVENDA FROM AD_VW_QUEBRALOTE WHERE NUNOTA = :P_NUNOTA GROUP BY CODPROD, SEQUENCIA, QTDNEG, AD_QTDMINVENDA");
+
 
 
             while (result.next()) {
@@ -84,9 +74,10 @@ public class CorteExpedicaoOperadorOtimizado {
                 BigDecimal sequencia = result.getBigDecimal("SEQUENCIA");
                 BigDecimal qtdpedido = result.getBigDecimal("QTDPEDIDO");
                 BigDecimal qtdneg = result.getBigDecimal("QTDNEG");
+                BigDecimal qtdMinVenda = result.getBigDecimal("AD_QTDMINVENDA");
                 DynamicVO iteVO = iteDAO.findByPK(nunota, sequencia);
 
-                if(qtdpedido.equals(BigDecimal.ZERO)) {
+                if(qtdpedido.compareTo(BigDecimal.ZERO) <= 0) {
                     countDel++;
                     iteDAO.prepareToUpdateByPK(nunota, sequencia)
                             .set("AD_CLASSCORT", "RT")
@@ -99,6 +90,7 @@ public class CorteExpedicaoOperadorOtimizado {
                             .update();
 
                     iteVO.setProperty("QTDNEG", qtdpedido);
+                    iteVO.setProperty("AD_BLOQVALQTDMIN", "S");
                     iteVO.setProperty("VLRTOT", qtdpedido.multiply(iteVO.asBigDecimal("VLRUNIT")));
 
                     CentralItemNota itemNota = new CentralItemNota();
@@ -115,7 +107,6 @@ public class CorteExpedicaoOperadorOtimizado {
                     dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
 
                 }
-
 
             }
 
@@ -170,7 +161,25 @@ public class CorteExpedicaoOperadorOtimizado {
         }
     }
 
+    private void limpaVazios(BigDecimal nunota) throws Exception {
+        JapeWrapper iteDAO = JapeFactory.dao(DynamicEntityNames.ITEM_NOTA);
+        Collection<DynamicVO> itesVO = iteDAO.find("NUNOTA = ? AND CONTROLE = ' '", nunota);
 
+        for(DynamicVO iteVO : itesVO) {
+            iteDAO.prepareToUpdateByPK(nunota, iteVO.asBigDecimal("SEQUENCIA"))
+                    .set("AD_CLASSCORT", "RT")
+                    .update();
+            iteDAO.delete(new Object[]{nunota, iteVO.asBigDecimal("SEQUENCIA")});
+        }
+
+        itesVO = iteDAO.find("NUNOTA = ?", nunota);
+        for(DynamicVO iteVO : itesVO) {
+            iteDAO.prepareToUpdateByPK(nunota, iteVO.asBigDecimal("SEQUENCIA"))
+                    .set("AD_BLOQVALQTDMIN", "N")
+                    .update();
+        }
+
+    }
 
     private void indicaLotes(BigDecimal nunota) throws Exception {
         JapeWrapper iteDAO = JapeFactory.dao(DynamicEntityNames.ITEM_NOTA);
@@ -188,29 +197,129 @@ public class CorteExpedicaoOperadorOtimizado {
 
             NativeSql q = new NativeSql(jdbc);
             q.setNamedParameter("P_NUNOTA", nunota);
-            ResultSet r = q.executeQuery("SELECT V.*, ROW_NUMBER() OVER (PARTITION BY SEQUENCIA ORDER BY SEQUENCIA) AS LINHA FROM AD_VW_PEDIDOPORLOTE V WHERE NUNOTA = :P_NUNOTA");
-
+            ResultSet r = q.executeQuery("SELECT ROW_NUMBER() OVER (PARTITION BY SEQUENCIA ORDER BY SEQUENCIA, QTD_ACUMULADA) AS LINHA , " +
+                    " t.* FROM AD_VW_QUEBRALOTE t WHERE ESTOQUE > 0  " +
+                    " AND t.qtd_acumulada <= ( " +
+                    "      SELECT nvl(min(q.qtd_acumulada), t.qtdneg) " +
+                    "      FROM ad_vw_quebralote q " +
+                    "      WHERE q.nunota = t.nunota " +
+                    " and q.codprod = t.codprod " +
+                    "        AND q.qtd_acumulada >= q.qtdneg " +
+                    "  ) AND NUNOTA = :P_NUNOTA " +
+                    " and t.qtd_acumulada > 0 " +
+                    " and t.estoque > 0 " +
+                    " ORDER BY SEQUENCIA, QTD_ACUMULADA ");
+            BigDecimal qtdFaltante = BigDecimal.ZERO;
+            BigDecimal quantidade = BigDecimal.ZERO;
+            int count = 0;
+            BigDecimal codprodold = BigDecimal.ZERO;
             while(r.next()) {
                 BigDecimal linha = r.getBigDecimal("LINHA");
                 String controle = r.getString("CONTROLE");
-                BigDecimal quantidade = r.getBigDecimal("QTD_A_SEPARAR");
-                DynamicVO iteVO = iteDAO.findByPK(nunota, r.getBigDecimal("SEQUENCIA"));
+                BigDecimal qtdMultiplo = r.getBigDecimal("ESTOQUEMULTIPLO");
+                BigDecimal qtdRestante = r.getBigDecimal("ESTOQUERESTANTE");
+                BigDecimal qtdNeg = r.getBigDecimal("QTDNEG");
                 BigDecimal codparcest = r.getBigDecimal("CODPARC");
+                BigDecimal codprod = r.getBigDecimal("CODPROD");
+                DynamicVO iteVO = iteDAO.findByPK(nunota, r.getBigDecimal("SEQUENCIA"));
+                Boolean alterou = false;
+                if(!codprod.equals(codprodold)) {
+                    qtdFaltante = qtdNeg;
 
-                if(linha.equals(BigDecimal.ONE)){
-                    iteVO.setProperty("CONTROLE", controle);
-                    iteVO.setProperty("QTDNEG", quantidade);
-                    iteVO.setProperty("VLRTOT", quantidade.multiply(iteVO.asBigDecimal("VLRUNIT")));
-                    iteVO.setProperty("CONTROLE", controle);
-                    iteVO.setProperty("AD_CLASSCORT", "L");
-                    iteVO.setProperty("AD_CODPARCEST", codparcest);
-                    dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
-                    iteVO.setProperty("AD_CLASSCORT", null);
-                    dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
-                } else {
-                    insereItem(iteVO, quantidade, controle, codparcest);
+                }
+                codprodold = codprod;
+
+                // Para quantidade de estoque múltiplo maior que zero
+                if(qtdMultiplo.compareTo(BigDecimal.ZERO) > 0) {
+                    if (qtdFaltante.compareTo(qtdMultiplo) >= 0) {
+                        qtdFaltante = qtdFaltante.subtract(qtdMultiplo);
+                        quantidade = qtdMultiplo;
+                    } else {
+                        quantidade = qtdFaltante;
+                        qtdFaltante = BigDecimal.ZERO;
+
+                    }
+
+                        if (quantidade.compareTo(BigDecimal.ZERO) > 0) {
+                            if (linha.equals(BigDecimal.ONE)) {
+                                alteraItem(iteVO, quantidade, controle, codparcest);
+                                alterou = true;
+                            } else {
+                                insereItem(iteVO, quantidade, controle, codparcest);
+                            }
+                        }
+
+
+                    if(qtdFaltante.compareTo(BigDecimal.ZERO) > 0) {
+
+                        if(qtdFaltante.compareTo(qtdRestante) >= 0) {
+                            qtdFaltante = qtdFaltante.subtract(qtdRestante);
+                            quantidade = qtdRestante;
+
+                            if(quantidade.compareTo(BigDecimal.ZERO) > 0) {
+                                if (linha.equals(BigDecimal.ONE) && !alterou) {
+                                    alteraItem(iteVO, quantidade, controle, codparcest);
+                                    alterou = true;
+                                } else {
+                                    insereItem(iteVO, quantidade, controle, codparcest);
+
+                                }
+                            }
+                        } else {
+                            quantidade = qtdFaltante;
+                            qtdFaltante = BigDecimal.ZERO;
+
+
+                            if(quantidade.compareTo(BigDecimal.ZERO) > 0) {
+                                if (linha.equals(BigDecimal.ONE) && !alterou) {
+                                    alteraItem(iteVO, quantidade, controle, codparcest);
+                                    alterou = true;
+                                } else {
+                                    insereItem(iteVO, quantidade, controle, codparcest);
+                                }
+                            }
+                        }
+
+                    }
+
+                }
+                // Se a quantidade de múltiplo for igual a zero, insere a quantidade restante
+                else {
+                    if(qtdFaltante.compareTo(BigDecimal.ZERO) > 0) {
+                        if (qtdFaltante.compareTo(qtdRestante) >= 0) {
+                            qtdFaltante = qtdFaltante.subtract(qtdRestante);
+                            quantidade = qtdRestante;
+                            if (quantidade.compareTo(BigDecimal.ZERO) > 0) {
+                                if (linha.equals(BigDecimal.ONE) && !alterou) {
+                                    alteraItem(iteVO, quantidade, controle, codparcest);
+                                    alterou = true;
+                                } else {
+                                    insereItem(iteVO, quantidade, controle, codparcest);
+                                }
+                            }
+                        } else {
+                            quantidade = qtdFaltante;
+                            qtdFaltante = BigDecimal.ZERO;
+
+                            if (quantidade.compareTo(BigDecimal.ZERO) > 0) {
+                                if (linha.equals(BigDecimal.ONE) && !alterou) {
+                                    alteraItem(iteVO, quantidade, controle, codparcest);
+                                    alterou = true;
+                                } else {
+                                    insereItem(iteVO, quantidade, controle, codparcest);
+                                }
+                            }
+
+                        }
+                    }
                 }
             }
+
+            cabVO.setProperty("AD_DESCONSCORTE", "N");
+            dwfEntityFacade.saveEntity(DynamicEntityNames.CABECALHO_NOTA, (EntityVO) cabVO);
+
+
+            limpaVazios(nunota);
             recalculaNota(nunota);
         } catch(Exception e){
             e.printStackTrace();
@@ -219,6 +328,25 @@ public class CorteExpedicaoOperadorOtimizado {
             jdbc.closeSession();
         }
 
+    }
+
+
+
+    private static void alteraItem(DynamicVO iteVO, BigDecimal quantidade, String controle, BigDecimal codparcest) throws Exception {
+        EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
+        try {
+            iteVO.setProperty("CONTROLE", controle);
+            iteVO.setProperty("QTDNEG", quantidade);
+            iteVO.setProperty("VLRTOT", quantidade.multiply(iteVO.asBigDecimal("VLRUNIT")));
+            iteVO.setProperty("AD_CLASSCORT", "L");
+            iteVO.setProperty("AD_CODPARCEST", codparcest);
+            iteVO.setProperty("AD_BLOQVALQTDMIN", "S");
+            dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
+            iteVO.setProperty("AD_CLASSCORT", null);
+            dwfEntityFacade.saveEntity(DynamicEntityNames.ITEM_NOTA, (EntityVO) iteVO);
+        } catch(Exception e) {
+            throw new Exception("Erro ao alterar itens de lote: " + e.getMessage());
+        }
     }
 
     private static void insereItem (DynamicVO iteVO, BigDecimal quantidade, String controle, BigDecimal codparcEst) throws Exception {
@@ -238,12 +366,12 @@ public class CorteExpedicaoOperadorOtimizado {
                     .set("ATUALESTOQUE", iteVO.asBigDecimal("ATUALESTOQUE"))
                     .set("RESERVA", iteVO.asString("RESERVA"))
                     .set("NUTAB", iteVO.asBigDecimal("NUTAB"))
+                    .set("AD_BLOQVALQTDMIN", "S")
                     .set("AD_CODPARCEST", codparcEst)
                     .save();
         } catch(Exception e) {
             throw new Exception("Erro ao incluir itens de lote: " + e.getMessage());
         }
-
 
 
     }

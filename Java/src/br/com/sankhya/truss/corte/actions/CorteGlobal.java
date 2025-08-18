@@ -77,7 +77,7 @@ public class CorteGlobal implements AcaoRotinaJava {
 				if ("1".equals(localSeparacao)) {
 					CorteExpedicaoTruss.executaCorte(nunota);
 				} else {
-					new CorteExpedicaoOperadorOtimizado().executaCorte(nunota);
+					new CorteExpedicaoOperadorQuebraLote().executaCorte(nunota);
 				}
 			}
 

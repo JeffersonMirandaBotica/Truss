@@ -122,10 +122,15 @@ public class CorteHelper {
 	public static void indicaLotes(BigDecimal nunota) throws Exception {
 		JapeWrapper iteDAO = JapeFactory.dao("ItemNota");
 		JapeWrapper cabDAO = JapeFactory.dao("CabecalhoNota");
+		JapeWrapper topDAO = JapeFactory.dao(DynamicEntityNames.TIPO_OPERACAO);
 		Collection<DynamicVO> itesVO = iteDAO.find("NUNOTA = ? AND CONTROLE = ' '", new Object[] { nunota });
 		EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 		JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
 		try {
+			DynamicVO cabVO = cabDAO.findByPK(nunota);
+			DynamicVO topVO = topDAO.findByPK(cabVO.asBigDecimal("CODTIPOPER"), cabVO.asTimestamp("DHTIPOPER"));
+			String validaQtdMinima = "S".equals(topVO.asString("AD_VALIDAQTDMIN")) ? "S" : "N";
+
 			String verificaShelfLife = verificaEstoqueShelfLife(nunota);
 			if(verificaShelfLife != null){
 				throw new Exception(verificaShelfLife);
@@ -137,29 +142,41 @@ public class CorteHelper {
 				query.setNamedParameter("P_CODPROD", iteVO.asBigDecimal("CODPROD"));
 				query.setNamedParameter("P_CODEMP", iteVO.asBigDecimal("CODEMP"));
 				query.setNamedParameter("P_CODLOCAL", iteVO.asBigDecimal("CODLOCALORIG"));
-				ResultSet r = query.executeQuery("SELECT CODPROD, CONTROLE, NVL(DISPONIVEL,0) AS DISPONIVEL  FROM AD_VW_ESTOQUEPORPARCEIRO EST  WHERE CODPROD = :P_CODPROD  AND EST.CODEMP = :P_CODEMP  AND EST.CODLOCAL = :P_CODLOCAL  AND DISPONIVEL > 0  ORDER BY DTVAL ");
+
+				String consulta = "";
+
+				if("S".equals(validaQtdMinima)) {
+					consulta = "SELECT CODPROD, CONTROLE, CODPARC, NVL(DISPONIVEL,0) AS DISPONIVEL  FROM AD_VW_ESTOQUEPORPARCEIRO EST  WHERE CODPROD = :P_CODPROD  AND EST.CODEMP = :P_CODEMP  AND EST.CODLOCAL = :P_CODLOCAL  AND DISPONIVEL > 0  ORDER BY codparc desc, DTVAL ";
+				} else {
+					consulta = "SELECT CODPROD, CONTROLE, CODPARC, NVL(ESTOQUE,0) AS DISPONIVEL  FROM AD_VW_ESTOQUEPORPARCEIRO EST  WHERE CODPROD = :P_CODPROD  AND EST.CODEMP = :P_CODEMP  AND EST.CODLOCAL = :P_CODLOCAL  AND ESTOQUE > 0  ORDER BY codparc desc, DTVAL ";
+				}
+
+				ResultSet r = query.executeQuery(consulta);
 				BigDecimal qtdRestante = iteVO.asBigDecimal("QTDNEG");
 				int count = 0;
 				while (r.next()) {
 					BigDecimal disponivel = r.getBigDecimal("DISPONIVEL");
 					String controle = r.getString("CONTROLE");
+					BigDecimal codparc = r.getBigDecimal("CODPARC");
 					if (count == 0) {
 						if (disponivel.compareTo(qtdRestante) >= 0) {
 							iteVO.setProperty("CONTROLE", controle);
+							iteVO.setProperty("AD_CODPARCEST", codparc);
 							dwfEntityFacade.saveEntity("ItemNota", (EntityVO)iteVO);
 							break;
 						}
 						iteVO.setProperty("QTDNEG", disponivel);
 						iteVO.setProperty("VLRTOT", disponivel.multiply(iteVO.asBigDecimal("VLRUNIT")));
 						iteVO.setProperty("CONTROLE", controle);
+						iteVO.setProperty("AD_CODPARCEST", codparc);
 						dwfEntityFacade.saveEntity("ItemNota", (EntityVO)iteVO);
 						qtdRestante = qtdRestante.subtract(disponivel);
 					} else {
 						if (disponivel.compareTo(qtdRestante) >= 0) {
-							insereItem(iteVO, qtdRestante, controle);
+							insereItem(iteVO, qtdRestante, controle, codparc);
 							break;
 						}
-						insereItem(iteVO, disponivel, controle);
+						insereItem(iteVO, disponivel, controle, codparc);
 						qtdRestante = qtdRestante.subtract(disponivel);
 					}
 					count++;
@@ -182,12 +199,17 @@ public class CorteHelper {
 		JapeWrapper cabDAO = JapeFactory.dao(DynamicEntityNames.CABECALHO_NOTA);
 		JapeWrapper parDAO = JapeFactory.dao(DynamicEntityNames.PARCEIRO);
 		JapeWrapper proDAO = JapeFactory.dao(DynamicEntityNames.PRODUTO);
+		JapeWrapper topDAO = JapeFactory.dao(DynamicEntityNames.TIPO_OPERACAO);
 		JapeWrapper prefDAO = JapeFactory.dao(DynamicEntityNames.PARAMETRO_SISTEMA);
 		String msgError = "Os seguintes produtos não possuem quantidades suficientes devido ao shelflife do parceiro.<br>";
 		try {
 			Collection<DynamicVO> itesVO = iteDAO.find("NUNOTA = ?", nunota);
 			DynamicVO cabVO = cabDAO.findByPK(nunota);
 			DynamicVO parVO = parDAO.findByPK(cabVO.asBigDecimal("CODPARC"));
+			DynamicVO topVO = topDAO.findByPK(cabVO.asBigDecimal("CODTIPOPER"), cabVO.asTimestamp("DHTIPOPER"));
+
+			String validaQtdMinima = "S".equals(topVO.asString("AD_VALIDAQTDMIN")) ? "S" : "N";
+
 			EntityFacade dwfEntityFacade = EntityFacadeFactory.getDWFFacade();
 			JdbcWrapper jdbc = dwfEntityFacade.getJdbcWrapper();
 
@@ -221,7 +243,7 @@ public class CorteHelper {
 				query.setNamedParameter("P_CODEMP", codemp);
 				query.setNamedParameter("P_SHELFLIFE", shelflife);
 
-				ResultSet r = query.executeQuery("SELECT NVL(SUM(EST.DISPONIVEL),0) AS DISPONIVEL " +
+				ResultSet r = query.executeQuery("SELECT NVL(SUM(EST.DISPONIVEL),0) AS DISPONIVEL, NVL(SUM(EST.ESTOQUE),0) AS ESTOQUE " +
 						" FROM AD_VW_ESTOQUEPORPARCEIRO EST " +
 						" JOIN TGFPRO PRO ON PRO.CODPROD = EST.CODPROD " +
 						" WHERE EST.CODPROD = :P_CODPROD " +
@@ -231,7 +253,8 @@ public class CorteHelper {
 
 
 				while (r.next()) {
-					disponivelTerceiro = r.getBigDecimal("DISPONIVEL");
+
+					disponivelTerceiro = validaQtdMinima.equals("S") ? r.getBigDecimal("DISPONIVEL") : r.getBigDecimal("ESTOQUE");
 				}
 
 				if (disponivelTerceiro.compareTo(qtdneg) < 0) {
@@ -253,7 +276,7 @@ public class CorteHelper {
 
 	}
 
-	public static void insereItem(DynamicVO iteVO, BigDecimal quantidade, String controle) throws Exception {
+	public static void insereItem(DynamicVO iteVO, BigDecimal quantidade, String controle, BigDecimal codparc) throws Exception {
 		JapeWrapper iteDAO = JapeFactory.dao("ItemNota");
 		try {
 			((FluidCreateVO)((FluidCreateVO)((FluidCreateVO)((FluidCreateVO)((FluidCreateVO)((FluidCreateVO)((FluidCreateVO)((FluidCreateVO)((FluidCreateVO)((FluidCreateVO)((FluidCreateVO)iteDAO.create()
@@ -268,6 +291,7 @@ public class CorteHelper {
 					.set("ATUALESTOQUE", iteVO.asBigDecimal("ATUALESTOQUE")))
 					.set("RESERVA", iteVO.asString("RESERVA")))
 					.set("NUTAB", iteVO.asBigDecimal("NUTAB")))
+					.set("AD_CODPARCEST", codparc)
 					.save();
 		} catch (Exception e) {
 			throw new Exception("Erro ao incluir itens de lote: " + e.getMessage());

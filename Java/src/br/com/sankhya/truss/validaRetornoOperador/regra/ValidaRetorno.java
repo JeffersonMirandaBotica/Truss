@@ -41,7 +41,7 @@ public class ValidaRetorno implements RegraNegocioJava {
                 throw new Exception("Pedido de venda informado não é válido.");
             }
 
-            if(!(pedidoVO.asString("TIPMOV").equals("P") || pedidoVO.asString("TIPMOV").equals("Q"))){
+            if(!(pedidoVO.asString("TIPMOV").equals("P") || pedidoVO.asString("TIPMOV").equals("Q") || pedidoVO.asString("TIPMOV").equals("J"))){
                 throw new Exception("Pedido de venda informado não é válido.");
             }
 

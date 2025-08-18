@@ -28,6 +28,7 @@ import java.util.Date;
 public class EnviaSeparacaoXls implements AcaoRotinaJava {
     @Override
     public void doAction(ContextoAcao ctx) throws Exception {
+        Boolean erro = false;
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("Envio Separacao");
 
@@ -55,7 +56,7 @@ public class EnviaSeparacaoXls implements AcaoRotinaJava {
         try {
             // Recupera os registros selecionados na tela
             Registro[] linhas = ctx.getLinhas();
-
+            String errmsg = "Os seguintes produtos devem ter os lotes preenchidos: <br>";
             for (Registro linha : linhas) {
                 // Obtém o NUNOTA de cada registro selecionado
                 BigDecimal nunota = (BigDecimal) linha.getCampo("NUNOTA");
@@ -68,10 +69,14 @@ public class EnviaSeparacaoXls implements AcaoRotinaJava {
                         " (ITE.QTDNEG - ITE.QTDENTREGUE) AS QTDNEG, " +
                         " ITE.CONTROLE, " +
                         " SEP.NUNOTA, " +
-                        "CASE " +
+                        "CASE " + 
                         " WHEN PAI.CODPAIS = 55 THEN 'NACIONAL'" +
                         " ELSE 'INTER' " +
-                        " END AS TIPO" +
+                        " END AS TIPO," +
+                        " CASE" +
+                        " WHEN PRO.TIPCONTEST = 'L' AND ITE.CONTROLE = ' ' THEN ITE.CODPROD " +
+                        " ELSE 0 " +
+                        " END AS CODPRODSEMLOTE " +
                         " FROM TGFCAB SEP " +
                         " JOIN TGFITE ITE ON ITE.NUNOTA = SEP.NUNOTA " +
                         " JOIN TGFPRO PRO ON PRO.CODPROD = ITE.CODPROD " +
@@ -85,6 +90,10 @@ public class EnviaSeparacaoXls implements AcaoRotinaJava {
                 query.setNamedParameter("P_NUNOTA", nunota);
                 ResultSet r = query.executeQuery(sql);
 
+
+
+
+
                 // Percorre os resultados da consulta
                 while (r.next()) {
                     // Extrai os dados do ResultSet
@@ -95,7 +104,11 @@ public class EnviaSeparacaoXls implements AcaoRotinaJava {
                     String controle = r.getString("CONTROLE");
                     String pedido = r.getBigDecimal("NUNOTA").toString();
                     String tipo = r.getString("TIPO").toString();
-
+                    BigDecimal codprodsemlote = r.getBigDecimal("CODPRODSEMLOTE");
+                    if(!codprodsemlote.equals(BigDecimal.ZERO)){
+                        errmsg = errmsg + codprodsemlote + " <br>";
+                        erro = true;
+                    }
                     // Dentro do loop while (r.next())
                     Row row = sheet.createRow(rowIdx++);
                     row.createCell(0).setCellValue(codprod);
@@ -127,10 +140,10 @@ public class EnviaSeparacaoXls implements AcaoRotinaJava {
                             .update();
                 }
 
+            }
 
-
-
-
+            if (erro) {
+                throw new RuntimeException(errmsg);
             }
 
             // Após preencher todas as linhas
@@ -169,3 +182,8 @@ public class EnviaSeparacaoXls implements AcaoRotinaJava {
         }
     }
 }
+
+
+
+
+
